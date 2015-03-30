@@ -5,7 +5,6 @@
 //Forward Delcarations
 //Drivers and Headers
 #include "inc/hw_types.h"
-#include "inc/hw_adc.h"
 #include "inc/hw_ints.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_sysctl.h"
@@ -29,11 +28,6 @@
 #define BUTTON_CLOCK 200 // button scanning interrupt rate in Hz
 
 unsigned long g_ulSystemClock; // system clock frequency in Hz
-
-//Width of Screen in Pixels
-#define FRAME_SIZE_Y 128
-//Height of Screen in Pixels
-#define FRAME_SIZE_X 96
 
 
 //ADC Variables
@@ -71,6 +65,11 @@ const char * const g_ppcVoltageScaleStr[] = {
 //Offset at 0V
 #define ADC_OFFSET 16000
 
+
+//Graph Variables
+#define TEXT_BRIGHTNESS 0xf
+#define GRID_BRIGHTNESS 0x5
+
 int fifo_put(int value);
 int fifo_get(int * value);
 void configureAdc();
@@ -106,6 +105,8 @@ int main(void) {
 	// Start off as a rising edge
 	TriggerState t = kRisingEdge;
 
+	unsigned short voltageDiv = 0;
+
 	IntMasterEnable();
 
 	while(1){
@@ -126,7 +127,7 @@ int main(void) {
 					break;
 				}
 			}
-			if(abs(startingIndex - finishStart) > (ADC_BUFFER_SIZE / 2)){//Can't Find Trigger
+			if(abs(startingIndex - firstStart) > (ADC_BUFFER_SIZE / 2)){//Can't Find Trigger
 				finished = 1;
 				startingIndex = firstStart;
 				break;
@@ -146,6 +147,53 @@ int main(void) {
 		for(i = 0; i < FRAME_SIZE_Y; i++){
 			tempBuffer[i] = g_pusADCBuffer[ADC_BUFFER_WRAP(startingIndex - (FRAME_SIZE_Y / 2) + i)];
 		}
+		//Now we can draw to the screen
+		//First draw the background
+		const char * timeScale = "24 us";
+
+		FillFrame(0); // clear frame buffer
+
+		//Now draw the grid
+		unsigned int j;
+		for(j = 0; j < 11; j++){
+			DrawLine((j * PIXELS_PER_DIV) + 6, 0,(j * PIXELS_PER_DIV) + 6, FRAME_SIZE_Y, GRID_BRIGHTNESS);
+		}
+		for(j = 0; j < 8; j++){
+			DrawLine(0, (j * PIXELS_PER_DIV), FRAME_SIZE_X,(j * PIXELS_PER_DIV), GRID_BRIGHTNESS);
+		}
+
+		//Time Scale
+		DrawString(6, 3, timeScale, 15, 0);
+
+		//Voltage Div
+		DrawString(44,3,g_ppcVoltageScaleStr[voltageDiv], 15, 0);
+
+		//Trigger
+		if(t == kRisingEdge){
+			//Top line
+			DrawLine(110, 0, 116, 0, 15);
+			//Middle Line
+			DrawLine(110, 0, 110, 8, 15);
+			//Bottom Line
+			DrawLine(104, 8, 110, 8, 15);
+			//Triangle
+			DrawLine(107, 6, 110, 3, 15);
+			DrawLine(110, 3, 113, 6, 15);
+		}else{
+			//Bottom line
+			DrawLine(110, 8, 116, 8, 15);
+			//Middle Line
+			DrawLine(110, 0, 110, 8, 15);
+			//Top
+			DrawLine(104, 0, 110, 0, 15);
+			//Triangle
+			DrawLine(107, 3, 110, 6, 15);
+			DrawLine(110, 6, 113, 3, 15);
+		}
+
+
+		RIT128x96x4ImageDraw(g_pucFrame, 0, 0, FRAME_SIZE_X, FRAME_SIZE_Y);
+
 	}
 
 	return 0;
@@ -265,7 +313,7 @@ void configureAdc(){
 	ADCSequenceConfigure(ADC0_BASE,0,ADC_TRIGGER_ALWAYS, 0);
 	//Configure the Sequence Step
 	ADCSequenceStepConfigure(ADC0_BASE, 0, 0,
-			ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
+			ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0 | );
 	//Enable ADC Interrupt from Sequence 0
 	ADCIntEnable(ADC0_BASE, 0);
 	//Enabled ADC interrupt from sequence 0
@@ -290,12 +338,14 @@ void configureTimerA0(){
 	TimerLoadSet(TIMER0_BASE, TIMER_A, ulDivider);
 	TimerPrescaleSet(TIMER0_BASE, TIMER_A, ulPrescaler);
 
+
 	//Interrupts
 	TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 	TimerEnable(TIMER0_BASE, TIMER_A);
-
 	//Give it a medium priority
 	IntPrioritySet(INT_TIMER0A, 32); // 0 = highest priority, 32 = next lower IntEnable(INT_TIMER0A);
+	IntEnable(INT_TIMER0A);
+
 
 }
 
