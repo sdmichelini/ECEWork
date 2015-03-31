@@ -313,7 +313,7 @@ void configureAdc(){
 	ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_TIMER, 0);
 	//Configure the Sequence Step
 	ADCSequenceStepConfigure(ADC0_BASE, 0, 0,
-			ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0 | );
+			ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0  );
 	//Enable ADC Interrupt from Sequence 0
 	ADCIntEnable(ADC0_BASE, 0);
 	//Enabled ADC interrupt from sequence 0
