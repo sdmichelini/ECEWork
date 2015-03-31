@@ -310,7 +310,7 @@ void configureAdc(){
 	ADCSequenceDisable(ADC0_BASE, 0);
 	//"always trigger"
 	//Highest Priority
-	ADCSequenceConfigure(ADC0_BASE,0,ADC_TRIGGER_ALWAYS, 0);
+	ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_TIMER, 0);
 	//Configure the Sequence Step
 	ADCSequenceStepConfigure(ADC0_BASE, 0, 0,
 			ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0 | );
