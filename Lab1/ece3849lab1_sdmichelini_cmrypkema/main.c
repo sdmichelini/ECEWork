@@ -310,7 +310,7 @@ void configureAdc(){
 	ADCSequenceDisable(ADC0_BASE, 0);
 	//"always trigger"
 	//Highest Priority
-	ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_TIMER, 0);
+	ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_ALWAYS, 0);
 	//Configure the Sequence Step
 	ADCSequenceStepConfigure(ADC0_BASE, 0, 0,
 			ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0  );
@@ -319,7 +319,7 @@ void configureAdc(){
 	//Enabled ADC interrupt from sequence 0
 	ADCSequenceEnable(ADC0_BASE, 0);
 	//Enable the Interrupts
-	IntPrioritySet(INT_ADC0SS0, 0);
+	IntPrioritySet(INT_ADC0SS0, 0xff);
 	IntEnable(INT_ADC0SS0);
 
 }
