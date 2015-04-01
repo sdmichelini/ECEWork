@@ -37,7 +37,7 @@ volatile int g_iADCBufferIndex = ADC_BUFFER_SIZE - 1;//latest sample index
 volatile unsigned short g_pusADCBuffer[ADC_BUFFER_SIZE];//circular buffer of ADC samples
 volatile unsigned long g_ulADCErrors = 0;//ADC missed deadlines
 //ADC Bits
-#define ADC_BITS 16
+#define ADC_BITS 10
 #define PIXELS_PER_DIV 12
 #define VIN_RANGE 6
 
@@ -45,7 +45,7 @@ volatile unsigned long g_ulADCErrors = 0;//ADC missed deadlines
 //FIFO Variables
 #define FIFO_SIZE 11
 //Actual FIFO
-int g_buttonFifo[FIFO_SIZE];
+char g_buttonFifo[FIFO_SIZE];
 //Head and Tail
 volatile int g_fifo_head = 0;
 volatile int g_fifo_tail = 0;
@@ -61,20 +61,26 @@ volatile int g_fifo_tail = 0;
 const char * const g_ppcVoltageScaleStr[] = {
 		"100 mV","200 mV","500 mV","1 V"
 };
+
+float g_voltageDiv[] = {
+		0.1f, 0.2f, 0.5f, 1.0f
+};
 //CHANGE THIS
 //Offset at 0V
-#define ADC_OFFSET 16000
+#define ADC_OFFSET 510
 
 
 //Graph Variables
 #define TEXT_BRIGHTNESS 0xf
 #define GRID_BRIGHTNESS 0x5
 
-int fifo_put(int value);
-int fifo_get(int * value);
+int fifo_put(char value);
+int fifo_get(char * value);
 void configureAdc();
 void configureTimerA0();
+void configureCpuTimer();
 void configureGpio();
+unsigned long cpu_load_count(void);
 
 //Trigger State
 typedef enum{
@@ -97,6 +103,8 @@ int main(void) {
 	configureAdc();
 	configureTimerA0();
 	configureGpio();
+	configureCpuTimer();
+
 
 
 	RIT128x96x4Init(3500000); // initialize the OLED display
@@ -107,14 +115,77 @@ int main(void) {
 
 	unsigned short voltageDiv = 0;
 
+	long unloaded = cpu_load_count();
+	long loaded = 0;
+
+	unsigned short editing = 1;
 	IntMasterEnable();
 
+	float fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);
+
+	int loops;
+
 	while(1){
+		loaded = cpu_load_count();
+
+		loops++;
+
 		int startingIndex = ADC_BUFFER_WRAP(g_iADCBufferIndex - (FRAME_SIZE_Y / 2));
 		int firstStart = startingIndex;
 		short finished = 0;
+		int it = 0;
 		while(!finished){
 			int prevIndex = ADC_BUFFER_WRAP(startingIndex - 1);
+
+			//GPIO reading from FIFO
+			char val = 0;
+
+			if(fifo_get(&val)){
+				switch(val){
+				case SELECT_BUTTON:
+				{
+					if(t == kRisingEdge){
+						t = kFallingEdge;
+					}else{
+						t = kRisingEdge;
+					}
+					break;
+				}
+				case UP_BUTTON:
+				{
+					if(editing == 1){
+						if(voltageDiv < 3){
+							voltageDiv++;
+							fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);
+						}
+					}
+					break;
+				}
+				case DOWN_BUTTON:
+				{
+					if(editing == 1){
+						if(voltageDiv > 0){
+							voltageDiv--;
+							fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);
+						}
+					}
+					break;
+				}
+				case LEFT_BUTTON:
+				{
+					editing = 0;
+					break;
+				}
+				case RIGHT_BUTTON:
+				{
+					editing = 1;
+					break;
+				}
+				default:
+
+					break;
+				}
+			}
 			//What trigger is it
 			if(t == kRisingEdge){//Rising Edge
 				if((g_pusADCBuffer[prevIndex] < ADC_OFFSET)&&(g_pusADCBuffer[startingIndex] >= ADC_OFFSET)){
@@ -127,14 +198,14 @@ int main(void) {
 					break;
 				}
 			}
-			if(abs(startingIndex - firstStart) > (ADC_BUFFER_SIZE / 2)){//Can't Find Trigger
+			if(it > (ADC_BUFFER_SIZE / 2)){//Can't Find Trigger
 				finished = 1;
 				startingIndex = firstStart;
 				break;
 			}
 
 
-
+			it++;
 
 
 			//Decrement the index
@@ -142,10 +213,10 @@ int main(void) {
 		}
 		//Now copy to local buffer
 		unsigned int i;
-		short tempBuffer[FRAME_SIZE_Y];
+		short tempBuffer[FRAME_SIZE_X];
 		//use a for loop
-		for(i = 0; i < FRAME_SIZE_Y; i++){
-			tempBuffer[i] = g_pusADCBuffer[ADC_BUFFER_WRAP(startingIndex - (FRAME_SIZE_Y / 2) + i)];
+		for(i = 0; i < FRAME_SIZE_X; i++){
+			tempBuffer[i] = g_pusADCBuffer[ADC_BUFFER_WRAP(startingIndex - (FRAME_SIZE_X / 2) + i)];
 		}
 		//Now we can draw to the screen
 		//First draw the background
@@ -160,6 +231,25 @@ int main(void) {
 		}
 		for(j = 0; j < 8; j++){
 			DrawLine(0, (j * PIXELS_PER_DIV), FRAME_SIZE_X,(j * PIXELS_PER_DIV), GRID_BRIGHTNESS);
+		}
+
+		//Draw the selection
+		switch(editing){
+		case 0:{
+			DrawFilledRectangle(5, 3, 35, 10, 0x7);
+			break;
+		}
+		case 1:{
+			if(voltageDiv != 3){
+				DrawFilledRectangle(44, 3, 79, 10, 0x7);
+			}else{
+				DrawFilledRectangle(44, 3, 44+20, 10, 0x7);
+			}
+
+			break;
+		}
+		default:
+			break;
 		}
 
 		//Time Scale
@@ -190,7 +280,17 @@ int main(void) {
 			DrawLine(107, 3, 110, 6, 15);
 			DrawLine(110, 6, 113, 3, 15);
 		}
+		//Draw the point
 
+		for(i = 0; i < FRAME_SIZE_X; i++){
+			int y = FRAME_SIZE_Y/2 - (int)round((tempBuffer[i] - ADC_OFFSET) * fScale);
+			DrawPoint(i,y,0xf);
+		}
+
+		//Draw CPu Load
+		char pcStr[20]; // string buffer
+		usprintf(pcStr, "CPU load = %3d.%1d", (long)((unloaded-loaded) * (long)100)/loaded, ((long)((unloaded - loaded) * (long)1000)/loaded)%10); // convert time to string
+		DrawString(3,85,pcStr, 15, 0);
 
 		RIT128x96x4ImageDraw(g_pucFrame, 0, 0, FRAME_SIZE_X, FRAME_SIZE_Y);
 
@@ -206,14 +306,14 @@ int main(void) {
  * @return
  * 	1 on successful put, 0 on full FIFO
  */
-int fifo_put(int value){
+int fifo_put(char value){
 	int new_tail = g_fifo_tail + 1;
 	//Wrap Around
 	if(new_tail >= FIFO_SIZE) new_tail = 0;
 	//Check if FIFO is full
-	if(new_tail != g_fifo_tail){
+	if(new_tail != g_fifo_head){
 		//Store in FIFO
-		g_buttonFifo[new_tail] = value;
+		g_buttonFifo[g_fifo_tail] = value;
 		//Advance the Tail
 		g_fifo_tail = new_tail;
 		return 1;
@@ -226,7 +326,7 @@ int fifo_put(int value){
  * @return
  * 	1 on sucess, 0 on no data
  */
-int fifo_get(int * value){
+int fifo_get(char * value){
 	//FIFO not empty
 	if(g_fifo_head != g_fifo_tail){
 		//Extract Value from FIFO
@@ -348,6 +448,26 @@ void configureTimerA0(){
 
 
 }
+
+void configureCpuTimer(){
+	// initialize timer 3 in one-shot mode for polled timing
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
+	TimerDisable(TIMER3_BASE, TIMER_BOTH);
+	TimerConfigure(TIMER3_BASE, TIMER_CFG_ONE_SHOT);
+	TimerLoadSet(TIMER3_BASE, TIMER_A, (g_ulSystemClock/50) - 1); // 1 sec interval
+
+}
+
+unsigned long cpu_load_count(void)
+{
+	unsigned long i = 0;
+	TimerIntClear(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
+	TimerEnable(TIMER3_BASE, TIMER_A); // start one-shot timer
+	while (!(TimerIntStatus(TIMER3_BASE, 0) & TIMER_TIMA_TIMEOUT))
+		i++;
+	return i;
+}
+
 
 void configureGpio(){
 	//Configure the GPIO push buttons
