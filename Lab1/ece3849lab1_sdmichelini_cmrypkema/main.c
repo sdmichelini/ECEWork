@@ -282,9 +282,10 @@ int main(void) {
 		}
 		//Draw the point
 
-		for(i = 0; i < FRAME_SIZE_X; i++){
-			int y = FRAME_SIZE_Y/2 - (int)round((tempBuffer[i] - ADC_OFFSET) * fScale);
-			DrawPoint(i,y,0xf);
+		for(i = 0; i < FRAME_SIZE_X - 1; i++){
+			int y1 = FRAME_SIZE_Y/2 - (int)round((tempBuffer[i] - ADC_OFFSET) * fScale);
+			int y2 = FRAME_SIZE_Y/2 - (int)round((tempBuffer[i + 1] - ADC_OFFSET) * fScale);
+			DrawLine(i,y1,i+1,y2,0xf);
 		}
 
 		//Draw CPu Load
