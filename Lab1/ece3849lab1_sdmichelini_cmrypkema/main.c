@@ -65,6 +65,16 @@ const char * const g_ppcVoltageScaleStr[] = {
 float g_voltageDiv[] = {
 		0.1f, 0.2f, 0.5f, 1.0f
 };
+
+//In us
+unsigned long g_timerValues[] = {
+	24, 48, 72, 96
+};
+
+//Voltage Scales
+const char * const g_ppcTimeScaleStr[] = {
+		"24 us","48 us","72 us","96 us"
+};
 //CHANGE THIS
 //Offset at 0V
 #define ADC_OFFSET 510
@@ -77,6 +87,8 @@ float g_voltageDiv[] = {
 int fifo_put(char value);
 int fifo_get(char * value);
 void configureAdc();
+void configureAdc_timer();
+void setupSampleTimer(unsigned long timeScale);
 void configureTimerA0();
 void configureCpuTimer();
 void configureGpio();
@@ -88,7 +100,11 @@ typedef enum{
 	kFallingEdge
 }TriggerState;
 
+unsigned long loaded;
+unsigned long unloaded;
+
 int main(void) {
+	IntMasterDisable();
 	// initialize the clock generator
 	if (REVISION_IS_A2)
 	{
@@ -100,7 +116,10 @@ int main(void) {
 	g_ulSystemClock = SysCtlClockGet();
 
 	//Configure the Peripherals
-	configureAdc();
+//	configureAdc();
+//	configureAdc();
+	configureAdc_timer();
+	setupSampleTimer(24);
 	configureTimerA0();
 	configureGpio();
 	configureCpuTimer();
@@ -115,20 +134,23 @@ int main(void) {
 
 	unsigned short voltageDiv = 0;
 
-	long unloaded = cpu_load_count();
-	long loaded = 0;
+	unloaded = cpu_load_count();
+	loaded = 0;
+	float cpu_load = 0;
+
+	long loops = 0;
 
 	unsigned short editing = 1;
+	unsigned short timerDiv = 0;
 	IntMasterEnable();
 
 	float fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);
 
-	int loops;
 
 	while(1){
-		loaded = cpu_load_count();
 
 		loops++;
+
 
 		int startingIndex = ADC_BUFFER_WRAP(g_iADCBufferIndex - (FRAME_SIZE_Y / 2));
 		int firstStart = startingIndex;
@@ -158,6 +180,12 @@ int main(void) {
 							voltageDiv++;
 							fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);
 						}
+					}else if(editing == 0){
+						if(timerDiv < 3){
+							timerDiv++;
+							setupSampleTimer(g_timerValues[timerDiv]);
+							configureAdc_timer();
+						}
 					}
 					break;
 				}
@@ -167,6 +195,12 @@ int main(void) {
 						if(voltageDiv > 0){
 							voltageDiv--;
 							fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);
+						}
+					}else if(editing == 0){
+						if(timerDiv > 0){
+							timerDiv--;
+							setupSampleTimer(g_timerValues[timerDiv]);
+							configureAdc_timer();
 						}
 					}
 					break;
@@ -220,7 +254,7 @@ int main(void) {
 		}
 		//Now we can draw to the screen
 		//First draw the background
-		const char * timeScale = "24 us";
+		const char * timeScale = g_ppcTimeScaleStr[timerDiv];
 
 		FillFrame(0); // clear frame buffer
 
@@ -287,10 +321,12 @@ int main(void) {
 			int y2 = FRAME_SIZE_Y/2 - (int)round((tempBuffer[i + 1] - ADC_OFFSET) * fScale);
 			DrawLine(i,y1,i+1,y2,0xf);
 		}
-
+		loaded = cpu_load_count();
 		//Draw CPu Load
 		char pcStr[20]; // string buffer
-		usprintf(pcStr, "CPU load = %3d.%1d", (long)((unloaded-loaded) * (long)100)/loaded, ((long)((unloaded - loaded) * (long)1000)/loaded)%10); // convert time to string
+		cpu_load = 1.0 - (float)loaded/unloaded;
+//		usprintf(pcStr, "CPU load = %3d.%1d", (long)((unloaded-loaded) * (long)100)/loaded, ((long)((unloaded - loaded) * (long)1000)/loaded)%10); // convert time to string
+		usprintf(pcStr, "CPU load = %3d.%1d%%", (unsigned long)(cpu_load*100),(unsigned long)(((unsigned long)cpu_load*1000) % 10));
 		DrawString(3,85,pcStr, 15, 0);
 
 		RIT128x96x4ImageDraw(g_pucFrame, 0, 0, FRAME_SIZE_X, FRAME_SIZE_Y);
@@ -420,7 +456,7 @@ void configureAdc(){
 	//Enabled ADC interrupt from sequence 0
 	ADCSequenceEnable(ADC0_BASE, 0);
 	//Enable the Interrupts
-	IntPrioritySet(INT_ADC0SS0, 0xff);
+	IntPrioritySet(INT_ADC0SS0, 0x00);
 	IntEnable(INT_ADC0SS0);
 
 }
@@ -450,7 +486,7 @@ void configureAdc_timer(){
 	//Enabled ADC interrupt from sequence 0
 	ADCSequenceEnable(ADC0_BASE, 0);
 	//Enable the Interrupts
-	IntPrioritySet(INT_ADC0SS0, 0xff);
+	IntPrioritySet(INT_ADC0SS0, 0x0);
 	IntEnable(INT_ADC0SS0);
 	//TimerControlTrigger
 
@@ -480,6 +516,22 @@ void configureTimerA0(){
 	IntEnable(INT_TIMER0A);
 
 
+}
+
+void setupSampleTimer(unsigned long timeScale) {
+	unsigned long ulDivider, ulPrescaler;
+	unsigned long desiredFreq = ((12 * 1000) / timeScale) * 1000;
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+	TimerIntDisable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+	TimerDisable(TIMER1_BASE, TIMER_BOTH);
+	TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC);
+	ulPrescaler = (g_ulSystemClock / desiredFreq - 1) >> 16;
+	ulDivider = g_ulSystemClock / (desiredFreq * (ulPrescaler + 1)) - 1;
+	TimerLoadSet(TIMER1_BASE, TIMER_A, ulDivider);
+	TimerPrescaleSet(TIMER1_BASE, TIMER_A, ulPrescaler);
+	TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+	TimerControlTrigger(TIMER1_BASE, TIMER_A, true);
+	TimerEnable(TIMER1_BASE, TIMER_A);
 }
 
 void configureCpuTimer(){
