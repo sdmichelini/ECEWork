@@ -424,6 +424,38 @@ void configureAdc(){
 	IntEnable(INT_ADC0SS0);
 
 }
+
+void configureAdc_timer(){
+	unsigned int i;
+	//Clear ADC Buffer
+	for(i = 0; i < ADC_BUFFER_SIZE; i++){
+		g_pusADCBuffer[i] = 0;
+	}
+
+	//enable adc
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+	//Set to 500ksps
+	SysCtlADCSpeedSet(SYSCTL_ADCSPEED_500KSPS);
+	//Disable the ADC before continuing
+	//Sequence 0
+	ADCSequenceDisable(ADC0_BASE, 0);
+	//"always trigger"
+	//Highest Priority
+	ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_TIMER, 0);
+	//Configure the Sequence Step
+	ADCSequenceStepConfigure(ADC0_BASE, 0, 0,
+			ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0  );
+	//Enable ADC Interrupt from Sequence 0
+	ADCIntEnable(ADC0_BASE, 0);
+	//Enabled ADC interrupt from sequence 0
+	ADCSequenceEnable(ADC0_BASE, 0);
+	//Enable the Interrupts
+	IntPrioritySet(INT_ADC0SS0, 0xff);
+	IntEnable(INT_ADC0SS0);
+	//TimerControlTrigger
+
+
+}
 //Configure TimerA0
 void configureTimerA0(){
 
