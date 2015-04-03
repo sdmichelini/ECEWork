@@ -37,9 +37,9 @@ volatile int g_iADCBufferIndex = ADC_BUFFER_SIZE - 1;//latest sample index
 volatile unsigned short g_pusADCBuffer[ADC_BUFFER_SIZE];//circular buffer of ADC samples
 volatile unsigned long g_ulADCErrors = 0;//ADC missed deadlines
 //ADC Bits
-#define ADC_BITS 10
+#define ADC_BITS 10 //10 bit ADC
 #define PIXELS_PER_DIV 12
-#define VIN_RANGE 6
+#define VIN_RANGE 6 //In V
 
 
 //FIFO Variables
@@ -62,20 +62,21 @@ const char * const g_ppcVoltageScaleStr[] = {
 		"100 mV","200 mV","500 mV","1 V"
 };
 
+//Voltage Settings
 float g_voltageDiv[] = {
 		0.1f, 0.2f, 0.5f, 1.0f
 };
 
+//Timer values
 //In us
 unsigned long g_timerValues[] = {
 	24, 48, 72, 96
 };
 
-//Voltage Scales
+//Timer Scales
 const char * const g_ppcTimeScaleStr[] = {
 		"24 us","48 us","72 us","96 us"
 };
-//CHANGE THIS
 //Offset at 0V
 #define ADC_OFFSET 510
 
@@ -84,6 +85,7 @@ const char * const g_ppcTimeScaleStr[] = {
 #define TEXT_BRIGHTNESS 0xf
 #define GRID_BRIGHTNESS 0x5
 
+//-----FORWARD DEFINITIONS------//
 int fifo_put(char value);
 int fifo_get(char * value);
 void configureAdc();
@@ -95,15 +97,18 @@ void configureGpio();
 unsigned long cpu_load_count(void);
 
 //Trigger State
+//What type of trigger it is
 typedef enum{
 	kRisingEdge,
 	kFallingEdge
 }TriggerState;
 
+//CPU load variables
 unsigned long loaded;
 unsigned long unloaded;
 
 int main(void) {
+	//Disable Interrupts
 	IntMasterDisable();
 	// initialize the clock generator
 	if (REVISION_IS_A2)
@@ -140,6 +145,7 @@ int main(void) {
 
 	long loops = 0;
 
+	//Edit the voltage first
 	unsigned short editing = 1;
 	unsigned short timerDiv = 0;
 	IntMasterEnable();
@@ -162,6 +168,7 @@ int main(void) {
 			//GPIO reading from FIFO
 			char val = 0;
 
+			//Process Input
 			if(fifo_get(&val)){
 				switch(val){
 				case SELECT_BUTTON:
