@@ -57,6 +57,16 @@ volatile int g_fifo_tail = 0;
 #define LEFT_BUTTON (0x1 << 3)
 #define RIGHT_BUTTON (0x1 << 4)
 
+//Menu State
+#define EDIT_TIMESCALE 0
+#define EDIT_VOLTAGE 1
+#define EDIT_OPTIONS 3//# of selections in each submenu
+
+//Drawing Constants
+//Horizontal and Vertical Lines
+#define HORIZONTAL_DIVS 8
+#define VERTICAL_DIVS 11
+
 //Voltage Scales
 const char * const g_ppcVoltageScaleStr[] = {
 		"100 mV","200 mV","500 mV","1 V"
@@ -70,7 +80,7 @@ float g_voltageDiv[] = {
 //Timer values
 //In us
 unsigned long g_timerValues[] = {
-	24, 48, 72, 96
+		24, 48, 72, 96
 };
 
 //Timer Scales
@@ -104,7 +114,7 @@ typedef enum{
 }TriggerState;
 
 //CPU load variables
-unsigned long loaded;
+unsigned long loaded;//Ticks for CPU Loaded
 unsigned long unloaded;
 
 int main(void) {
@@ -121,8 +131,8 @@ int main(void) {
 	g_ulSystemClock = SysCtlClockGet();
 
 	//Configure the Peripherals
-//	configureAdc();
-//	configureAdc();
+	//	configureAdc();
+	//	configureAdc();
 	configureAdc_timer();
 	setupSampleTimer(24);
 	configureTimerA0();
@@ -146,7 +156,7 @@ int main(void) {
 	long loops = 0;
 
 	//Edit the voltage first
-	unsigned short editing = 1;
+	unsigned short editing = EDIT_VOLTAGE;
 	unsigned short timerDiv = 0;
 	IntMasterEnable();
 
@@ -157,76 +167,87 @@ int main(void) {
 
 		loops++;
 
+		//GPIO reading from FIFO
+		char val = 0;
 
+		//Process Input
+		if(fifo_get(&val)){
+			switch(val){
+			case SELECT_BUTTON://Select button pushed
+			{
+				if(t == kRisingEdge){//Switch Trigger Edge
+					t = kFallingEdge;
+				}else{
+					t = kRisingEdge;
+				}
+				break;
+			}
+			case UP_BUTTON://Up Button Pressed
+			{
+				if(editing == EDIT_VOLTAGE){
+					if(voltageDiv < EDIT_OPTIONS){//Increment Voltage Scale Unless it Reaches it's Max
+						voltageDiv++;
+						fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);//Readjust the Scale
+					}
+				}else if(editing == EDIT_TIMESCALE){
+					if(timerDiv < EDIT_OPTIONS){//Increment Time Scale Unless it Reaches it's Max
+						timerDiv++;
+						setupSampleTimer(g_timerValues[timerDiv]);//Reconfigure ADC Trigger Timer
+						configureAdc_timer();//Reconfigure ADC
+					}
+				}
+				break;
+			}
+			case DOWN_BUTTON://Down Button Pressed
+			{
+				if(editing == EDIT_VOLTAGE){
+					if(voltageDiv > 0){//Decrement to lowest menu setting
+						voltageDiv--;
+						fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);//Redo Scale
+					}
+				}else if(editing == EDIT_TIMESCALE){
+					if(timerDiv > 0){//Decrement to lowest menu setting
+						timerDiv--;
+						//Redo ADC and Timer
+						setupSampleTimer(g_timerValues[timerDiv]);
+						configureAdc_timer();
+					}
+				}
+				break;
+			}
+			case LEFT_BUTTON://Left Button Pressed
+			{
+				editing = EDIT_TIMESCALE;//Switch to Time
+				break;
+			}
+			case RIGHT_BUTTON://Right Button Pressed
+			{
+				editing = EDIT_VOLTAGE;//Switch to Voltage
+				break;
+			}
+			default:
+
+				break;
+			}
+		}
+
+
+		//Where we start the search from(a half frame back)
 		int startingIndex = ADC_BUFFER_WRAP(g_iADCBufferIndex - (FRAME_SIZE_Y / 2));
+		//Where we first started
 		int firstStart = startingIndex;
+		//Whether or not we are finished
 		short finished = 0;
+		//How many loops we completed
 		int it = 0;
+		//Go til we are done
 		while(!finished){
+			//The index before the one we search
 			int prevIndex = ADC_BUFFER_WRAP(startingIndex - 1);
 
-			//GPIO reading from FIFO
-			char val = 0;
 
-			//Process Input
-			if(fifo_get(&val)){
-				switch(val){
-				case SELECT_BUTTON:
-				{
-					if(t == kRisingEdge){
-						t = kFallingEdge;
-					}else{
-						t = kRisingEdge;
-					}
-					break;
-				}
-				case UP_BUTTON:
-				{
-					if(editing == 1){
-						if(voltageDiv < 3){
-							voltageDiv++;
-							fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);
-						}
-					}else if(editing == 0){
-						if(timerDiv < 3){
-							timerDiv++;
-							setupSampleTimer(g_timerValues[timerDiv]);
-							configureAdc_timer();
-						}
-					}
-					break;
-				}
-				case DOWN_BUTTON:
-				{
-					if(editing == 1){
-						if(voltageDiv > 0){
-							voltageDiv--;
-							fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);
-						}
-					}else if(editing == 0){
-						if(timerDiv > 0){
-							timerDiv--;
-							setupSampleTimer(g_timerValues[timerDiv]);
-							configureAdc_timer();
-						}
-					}
-					break;
-				}
-				case LEFT_BUTTON:
-				{
-					editing = 0;
-					break;
-				}
-				case RIGHT_BUTTON:
-				{
-					editing = 1;
-					break;
-				}
-				default:
 
-					break;
-				}
-			}
+
 			//What trigger is it
 			if(t == kRisingEdge){//Rising Edge
 				if((g_pusADCBuffer[prevIndex] < ADC_OFFSET)&&(g_pusADCBuffer[startingIndex] >= ADC_OFFSET)){
@@ -239,15 +260,14 @@ int main(void) {
 					break;
 				}
 			}
+			//Searched over half of the buffer
 			if(it > (ADC_BUFFER_SIZE / 2)){//Can't Find Trigger
 				finished = 1;
 				startingIndex = firstStart;
 				break;
 			}
-
-
+			//Increment
 			it++;
-
 
 			//Decrement the index
 			startingIndex = prevIndex;
@@ -267,20 +287,21 @@ int main(void) {
 
 		//Now draw the grid
 		unsigned int j;
-		for(j = 0; j < 11; j++){
-			DrawLine((j * PIXELS_PER_DIV) + 6, 0,(j * PIXELS_PER_DIV) + 6, FRAME_SIZE_Y, GRID_BRIGHTNESS);
+		for(j = 0; j < VERTICAL_DIVS; j++){
+			DrawLine((j * PIXELS_PER_DIV) + 6, 0,(j * PIXELS_PER_DIV) + 6, FRAME_SIZE_Y, GRID_BRIGHTNESS);//Draw Horizontal Lines
 		}
-		for(j = 0; j < 8; j++){
-			DrawLine(0, (j * PIXELS_PER_DIV), FRAME_SIZE_X,(j * PIXELS_PER_DIV), GRID_BRIGHTNESS);
+		for(j = 0; j < HORIZONTAL_DIVS; j++){
+			DrawLine(0, (j * PIXELS_PER_DIV), FRAME_SIZE_X,(j * PIXELS_PER_DIV), GRID_BRIGHTNESS);//Draw Vertical Lines
 		}
 
 		//Draw the selection
+		//Draw either a box around time setting or voltage setting
 		switch(editing){
-		case 0:{
+		case EDIT_TIMESCALE:{
 			DrawFilledRectangle(5, 3, 35, 10, 0x7);
 			break;
 		}
-		case 1:{
+		case EDIT_VOLTAGE:{
 			if(voltageDiv != 3){
 				DrawFilledRectangle(44, 3, 79, 10, 0x7);
 			}else{
@@ -321,7 +342,7 @@ int main(void) {
 			DrawLine(107, 3, 110, 6, 15);
 			DrawLine(110, 6, 113, 3, 15);
 		}
-		//Draw the point
+		//Draw the points
 
 		for(i = 0; i < FRAME_SIZE_X - 1; i++){
 			int y1 = FRAME_SIZE_Y/2 - (int)round((tempBuffer[i] - ADC_OFFSET) * fScale);
@@ -332,10 +353,10 @@ int main(void) {
 		//Draw CPu Load
 		char pcStr[20]; // string buffer
 		cpu_load = 1.0 - (float)loaded/unloaded;
-//		usprintf(pcStr, "CPU load = %3d.%1d", (long)((unloaded-loaded) * (long)100)/loaded, ((long)((unloaded - loaded) * (long)1000)/loaded)%10); // convert time to string
+		//Draw the CPU Load
 		usprintf(pcStr, "CPU load = %3d.%1d%%", (unsigned long)(cpu_load*100),(unsigned long)(((unsigned long)cpu_load*1000) % 10));
 		DrawString(3,85,pcStr, 15, 0);
-
+		//Push the Drawing Buffer
 		RIT128x96x4ImageDraw(g_pucFrame, 0, 0, FRAME_SIZE_X, FRAME_SIZE_Y);
 
 	}
@@ -418,6 +439,7 @@ void TIMER_0_ISR(){
 	//get the presses
 	presses = ~presses & g_ulButtons; // button presses
 
+	//Put the button that was pressed
 	if(presses & SELECT_BUTTON){
 		fifo_put(SELECT_BUTTON);
 	}
@@ -504,7 +526,7 @@ void configureTimerA0(){
 
 
 	unsigned long ulDivider, ulPrescaler;
-	// initialize a general purpose timer for periodic interrupts￼￼￼
+	// initialize a general purpose timer for periodic interrupts
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
 	TimerDisable(TIMER0_BASE, TIMER_BOTH);
 	TimerConfigure(TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC); // prescaler for a 16-bit timer
@@ -526,18 +548,28 @@ void configureTimerA0(){
 }
 
 void setupSampleTimer(unsigned long timeScale) {
+	//Clock Divider and Prescaler
 	unsigned long ulDivider, ulPrescaler;
+	//Desired Frequency
 	unsigned long desiredFreq = ((12 * 1000) / timeScale) * 1000;
+	//Enable Peripheral
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+	//Disable Interrupt
 	TimerIntDisable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+	//Disable Timer
 	TimerDisable(TIMER1_BASE, TIMER_BOTH);
+	//Configure Timer for Periodic Interrupts
 	TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC);
+	//Set the prescaler and deivers
 	ulPrescaler = (g_ulSystemClock / desiredFreq - 1) >> 16;
 	ulDivider = g_ulSystemClock / (desiredFreq * (ulPrescaler + 1)) - 1;
+	//Load the Divider
 	TimerLoadSet(TIMER1_BASE, TIMER_A, ulDivider);
+	//Load the prescaler
 	TimerPrescaleSet(TIMER1_BASE, TIMER_A, ulPrescaler);
+	//Enable Interrupts
 	TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
-	TimerControlTrigger(TIMER1_BASE, TIMER_A, true);
+	TimerControlTrigger(TIMER1_BASE, TIMER_A, true);//Set control trigger
 	TimerEnable(TIMER1_BASE, TIMER_A);
 }
 
@@ -545,8 +577,8 @@ void configureCpuTimer(){
 	// initialize timer 3 in one-shot mode for polled timing
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
 	TimerDisable(TIMER3_BASE, TIMER_BOTH);
-	TimerConfigure(TIMER3_BASE, TIMER_CFG_ONE_SHOT);
-	TimerLoadSet(TIMER3_BASE, TIMER_A, (g_ulSystemClock/50) - 1); // 1 sec interval
+	TimerConfigure(TIMER3_BASE, TIMER_CFG_ONE_SHOT);//One shot mode
+	TimerLoadSet(TIMER3_BASE, TIMER_A, (g_ulSystemClock/50) - 1); // 1/50 sec interval
 
 }
 
