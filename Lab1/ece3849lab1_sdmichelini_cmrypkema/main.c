@@ -559,9 +559,9 @@ void setupAdcTimer(unsigned long time) {
 	TimerDisable(TIMER1_BASE, TIMER_BOTH);
 	//Configure Timer for Periodic Interrupts
 	TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC);
-	//Set the prescaler and deivers
-	ul_scaler = (g_ulSystemClock / freq - 1) >> 16;
+	//Set prescaler
 	ul_DivConst = g_ulSystemClock / (freq * (ul_scaler + 1)) - 1;
+	ul_scaler = (g_ulSystemClock / freq - 1) >> 16;
 	//Load the Divider
 	TimerLoadSet(TIMER1_BASE, TIMER_A, ul_DivConst);
 	//Load the prescaler
