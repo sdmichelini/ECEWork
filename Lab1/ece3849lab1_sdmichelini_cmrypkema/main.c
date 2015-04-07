@@ -37,9 +37,9 @@ volatile int g_iADCBufferIndex = ADC_BUFFER_SIZE - 1;//latest sample index
 volatile unsigned short g_pusADCBuffer[ADC_BUFFER_SIZE];//circular buffer of ADC samples
 volatile unsigned long g_ulADCErrors = 0;//ADC missed deadlines
 //ADC Bits
-#define ADC_BITS 10 //10 bit ADC
-#define PIXELS_PER_DIV 12
-#define VIN_RANGE 6 //In V
+#define ADCBITCNT 10 //10 bit ADC
+#define PIXELCNT 12
+#define VIN 6 //In V
 
 
 //FIFO Variables
@@ -160,7 +160,7 @@ int main(void) {
 	unsigned short timerDiv = 0;
 	IntMasterEnable();
 
-	float fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);
+	float scale_div = (VIN * PIXELCNT)/((1 << ADCBITCNT) * g_voltageDiv[voltageDiv]);
 
 
 	while(1){
@@ -187,7 +187,7 @@ int main(void) {
 				if(editing == EDIT_VOLTAGE){
 					if(voltageDiv < EDIT_OPTIONS){//Increment Voltage Scale Unless it Reaches it's Max
 						voltageDiv++;
-						fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);//Readjust the Scale
+						scale_div = (VIN * PIXELCNT)/((1 << ADCBITCNT) * g_voltageDiv[voltageDiv]);//Readjust the Scale
 					}
 				}else if(editing == EDIT_TIMESCALE){
 					if(timerDiv < EDIT_OPTIONS){//Increment Time Scale Unless it Reaches it's Max
@@ -203,7 +203,7 @@ int main(void) {
 				if(editing == EDIT_VOLTAGE){
 					if(voltageDiv > 0){//Decrement to lowest menu setting
 						voltageDiv--;
-						fScale = (VIN_RANGE * PIXELS_PER_DIV)/((1 << ADC_BITS) * g_voltageDiv[voltageDiv]);//Redo Scale
+						scale_div = (VIN * PIXELCNT)/((1 << ADCBITCNT) * g_voltageDiv[voltageDiv]);//Redo Scale
 					}
 				}else if(editing == EDIT_TIMESCALE){
 					if(timerDiv > 0){//Decrement to lowest menu setting
@@ -288,10 +288,10 @@ int main(void) {
 		//Now draw the grid
 		unsigned int j;
 		for(j = 0; j < VERTICAL_DIVS; j++){
-			DrawLine((j * PIXELS_PER_DIV) + 6, 0,(j * PIXELS_PER_DIV) + 6, FRAME_SIZE_Y, GRID_BRIGHTNESS);//Draw Horizontal Lines
+			DrawLine((j * PIXELCNT) + 6, 0,(j * PIXELCNT) + 6, FRAME_SIZE_Y, GRID_BRIGHTNESS);//Draw Horizontal Lines
 		}
 		for(j = 0; j < HORIZONTAL_DIVS; j++){
-			DrawLine(0, (j * PIXELS_PER_DIV), FRAME_SIZE_X,(j * PIXELS_PER_DIV), GRID_BRIGHTNESS);//Draw Vertical Lines
+			DrawLine(0, (j * PIXELCNT), FRAME_SIZE_X,(j * PIXELCNT), GRID_BRIGHTNESS);//Draw Vertical Lines
 		}
 
 		//Draw the selection
@@ -345,8 +345,8 @@ int main(void) {
 		//Draw the points
 
 		for(i = 0; i < FRAME_SIZE_X - 1; i++){
-			int y1 = FRAME_SIZE_Y/2 - (int)round((tempBuffer[i] - ADC_OFFSET) * fScale);
-			int y2 = FRAME_SIZE_Y/2 - (int)round((tempBuffer[i + 1] - ADC_OFFSET) * fScale);
+			int y1 = FRAME_SIZE_Y/2 - (int)round((tempBuffer[i] - ADC_OFFSET) * scale_div);
+			int y2 = FRAME_SIZE_Y/2 - (int)round((tempBuffer[i + 1] - ADC_OFFSET) * scale_div);
 			DrawLine(i,y1,i+1,y2,0xf);
 		}
 		loaded = cpu_load_count();
