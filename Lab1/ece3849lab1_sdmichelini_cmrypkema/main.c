@@ -100,7 +100,7 @@ int fifo_put(char value);
 int fifo_get(char * value);
 void configureAdc();
 void configureAdc_timer();
-void setupSampleTimer(unsigned long timeScale);
+void setupAdcTimer(unsigned long time);
 void configureTimerA0();
 void configureCpuTimer();
 void configureGpio();
@@ -134,7 +134,7 @@ int main(void) {
 	//	configureAdc();
 	//	configureAdc();
 	configureAdc_timer();
-	setupSampleTimer(24);
+	setupAdcTimer(24);
 	configureTimerA0();
 	configureGpio();
 	configureCpuTimer();
@@ -192,7 +192,7 @@ int main(void) {
 				}else if(editing == EDIT_TIMESCALE){
 					if(timerDiv < EDIT_OPTIONS){//Increment Time Scale Unless it Reaches it's Max
 						timerDiv++;
-						setupSampleTimer(g_timerValues[timerDiv]);//Reconfigure ADC Trigger Timer
+						setupAdcTimer(g_timerValues[timerDiv]);//Reconfigure ADC Trigger Timer
 						configureAdc_timer();//Reconfigure ADC
 					}
 				}
@@ -209,7 +209,7 @@ int main(void) {
 					if(timerDiv > 0){//Decrement to lowest menu setting
 						timerDiv--;
 						//Redo ADC and Timer
-						setupSampleTimer(g_timerValues[timerDiv]);
+						setupAdcTimer(g_timerValues[timerDiv]);
 						configureAdc_timer();
 					}
 				}
@@ -547,11 +547,11 @@ void configureTimerA0(){
 
 }
 
-void setupSampleTimer(unsigned long timeScale) {
+void setupAdcTimer(unsigned long time) {
 	//Clock Divider and Prescaler
 	unsigned long ulDivider, ulPrescaler;
 	//Desired Frequency
-	unsigned long desiredFreq = ((12 * 1000) / timeScale) * 1000;
+	unsigned long freq = ((12000) / time) * 1000;
 	//Enable Peripheral
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
 	//Disable Interrupt
@@ -561,8 +561,8 @@ void setupSampleTimer(unsigned long timeScale) {
 	//Configure Timer for Periodic Interrupts
 	TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC);
 	//Set the prescaler and deivers
-	ulPrescaler = (g_ulSystemClock / desiredFreq - 1) >> 16;
-	ulDivider = g_ulSystemClock / (desiredFreq * (ulPrescaler + 1)) - 1;
+	ulPrescaler = (g_ulSystemClock / freq - 1) >> 16;
+	ulDivider = g_ulSystemClock / (freq * (ulPrescaler + 1)) - 1;
 	//Load the Divider
 	TimerLoadSet(TIMER1_BASE, TIMER_A, ulDivider);
 	//Load the prescaler
