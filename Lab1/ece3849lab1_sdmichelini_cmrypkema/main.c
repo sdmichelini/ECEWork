@@ -526,12 +526,11 @@ void configureTimerA0(){
 
 
 	unsigned long ulDivider, ulPrescaler;
-	// initialize a general purpose timer for periodic interrupts
+	//need a timer
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
 	TimerDisable(TIMER0_BASE, TIMER_BOTH);
 	TimerConfigure(TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC); // prescaler for a 16-bit timer
-	ulPrescaler = (g_ulSystemClock / BUTTON_CLOCK - 1) >> 16;
-	// 16-bit divider (timer load value)
+	ulPrescaler = (g_ulSystemClock / BUTTON_CLOCK - 1) >> 16; //divide then disregard bottom 16 to fit
 	ulDivider = g_ulSystemClock / (BUTTON_CLOCK * (ulPrescaler + 1)) - 1;
 	TimerLoadSet(TIMER0_BASE, TIMER_A, ulDivider);
 	TimerPrescaleSet(TIMER0_BASE, TIMER_A, ulPrescaler);
@@ -549,7 +548,7 @@ void configureTimerA0(){
 
 void setupAdcTimer(unsigned long time) {
 	//Clock Divider and Prescaler
-	unsigned long ulDivider, ulPrescaler;
+	unsigned long ul_scaler, ul_DivConst;
 	//Desired Frequency
 	unsigned long freq = ((12000) / time) * 1000;
 	//Enable Peripheral
@@ -561,12 +560,12 @@ void setupAdcTimer(unsigned long time) {
 	//Configure Timer for Periodic Interrupts
 	TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC);
 	//Set the prescaler and deivers
-	ulPrescaler = (g_ulSystemClock / freq - 1) >> 16;
-	ulDivider = g_ulSystemClock / (freq * (ulPrescaler + 1)) - 1;
+	ul_scaler = (g_ulSystemClock / freq - 1) >> 16;
+	ul_DivConst = g_ulSystemClock / (freq * (ul_scaler + 1)) - 1;
 	//Load the Divider
-	TimerLoadSet(TIMER1_BASE, TIMER_A, ulDivider);
+	TimerLoadSet(TIMER1_BASE, TIMER_A, ul_DivConst);
 	//Load the prescaler
-	TimerPrescaleSet(TIMER1_BASE, TIMER_A, ulPrescaler);
+	TimerPrescaleSet(TIMER1_BASE, TIMER_A, ul_scaler);
 	//Enable Interrupts
 	TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
 	TimerControlTrigger(TIMER1_BASE, TIMER_A, true);//Set control trigger
@@ -584,12 +583,12 @@ void configureCpuTimer(){
 
 unsigned long cpu_load_count(void)
 {
-	unsigned long i = 0;
+	unsigned long idx = 0;
 	TimerIntClear(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
 	TimerEnable(TIMER3_BASE, TIMER_A); // start one-shot timer
-	while (!(TimerIntStatus(TIMER3_BASE, 0) & TIMER_TIMA_TIMEOUT))
-		i++;
-	return i;
+	while (!(TIMER_TIMA_TIMEOUT & TimerIntStatus(TIMER3_BASE, 0)))
+		idx++;
+	return idx;
 }
 
 
