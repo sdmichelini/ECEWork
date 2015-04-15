@@ -42,6 +42,9 @@ volatile unsigned long g_ulADCErrors = 0; //ADC missed deadlines
 #define PIXELCNT 12
 #define VIN 6 //In V
 
+//ADC Offset
+#define ADC_OFFSET 510
+
 //Waveform Buffer
 short g_localBuffer[FRAME_SIZE_X];
 
@@ -61,6 +64,9 @@ short g_localBuffer[FRAME_SIZE_X];
 //Horizontal and Vertical Lines
 #define HORIZONTAL_DIVS 8
 #define VERTICAL_DIVS 11
+
+#define GRID_BRIGHTNESS 0x5
+#define TEXT_BRIGHTNESS 0xf
 
 //Trigger State
 //What type of trigger it is
@@ -103,6 +109,7 @@ const char * const g_ppcTimeScaleStr[] = {
  *  ======== taskFxn ========
  */
 void configureAdc(void);
+void configureTimerA0();
 void ADCISR(void);
 //Button Tick Callback
 void buttonClock(UArg arg0);
@@ -117,6 +124,8 @@ void displayTask(UArg arg0, UArg arg1);
 
 //Waveform Task
 void waveformTask(UArg arg0, UArg arg1);
+
+unsigned long g_ulSystemClock;
 
 //Void taskFxn(UArg a0, UArg a1)
 //{
@@ -134,6 +143,21 @@ Void main() {
 	//Task_Handle task;
 	Error_Block eb;
 
+	// initialize the clock generator
+//	if (REVISION_IS_A2)
+//	{
+//		SysCtlLDOSet(SYSCTL_LDO_2_75V);
+//	}
+//
+//	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
+//			SYSCTL_XTAL_8MHZ);
+//	g_ulSystemClock = SysCtlClockGet();
+
+
+
+	RIT128x96x4Init(3500000); // initialize the OLED display
+	configureAdc();
+
 	System_printf("enter main()\n");
 
 	Error_init(&eb);
@@ -142,6 +166,7 @@ Void main() {
 	//        System_printf("Task_create() failed!\n");
 	//        BIOS_exit(0);
 	//    }
+
 
 	BIOS_start(); /* enable interrupts and start SYS/BIOS */
 }
@@ -203,15 +228,15 @@ void buttonTask(UArg arg0, UArg arg1) {
 	while (1) {
 		Semaphore_pend(buttonScanSem, BIOS_WAIT_FOREVER);
 
-		presses = g_ulButtons;
-		//Debounce the Buttons
-		ButtonDebounce(
-				((~GPIO_PORTF_DATA_R & GPIO_PIN_1) >> 1)
-				| ((~GPIO_PORTE_DATA_R
-						& (GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2
-								| GPIO_PIN_3)) << 1));
-		//get the presses
-		presses = ~presses & g_ulButtons; // button presses
+//		presses = g_ulButtons;
+//		//Debounce the Buttons
+//		ButtonDebounce(
+//				((~GPIO_PORTF_DATA_R & GPIO_PIN_1) >> 1)
+//				| ((~GPIO_PORTE_DATA_R
+//						& (GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2
+//								| GPIO_PIN_3)) << 1));
+//		//get the presses
+//		presses = ~presses & g_ulButtons; // button presses
 
 		char msg;
 		//Put the button that was pressed
@@ -281,7 +306,7 @@ void userInputTask(UArg arg0, UArg arg1) {
 				if (g_voltageDiv > 0) { //Decrement to lowest menu setting
 					g_voltageDiv--;
 					g_scaleDiv = (VIN * PIXELCNT)
-																	/ ((1 << ADCBITCNT) * g_voltageDivArray[g_voltageDiv]); //Redo Scale
+																			/ ((1 << ADCBITCNT) * g_voltageDivArray[g_voltageDiv]); //Redo Scale
 				}
 			} else if (g_editing == EDIT_TIMESCALE) {
 				//				 if (timerDiv > 0) { //Decrement to lowest menu setting
@@ -328,9 +353,9 @@ void waveformTask(UArg arg0, UArg arg1){
 		//How many loops we completed
 		int it = 0;
 
-		Semaphore_post(settingsSem,BIOS_WAIT_FOREVER);
+		Semaphore_pend(settingsSem,BIOS_WAIT_FOREVER);
 		TriggerState t = g_triggerState;
-		Semaphore_pend(settingsSem);
+		Semaphore_post(settingsSem);
 		//Go til we are done
 		while(!finished){
 			//The index before the one we search
@@ -383,11 +408,14 @@ void displayTask(UArg arg0, UArg arg1){
 		//Now we can draw to the screen
 		//First draw the background
 		Semaphore_pend(settingsSem,BIOS_WAIT_FOREVER);
-		const char * timeScale = g_ppcTimeScaleStr[g_timerDiv];
-		short editing = g_editing;
 		short voltageDiv = g_voltageDiv;
+
+		float scale_div = (VIN * PIXELCNT)/((1 << ADCBITCNT) * g_voltageDivArray[voltageDiv]);
+		const char * timeScale = g_ppcTimeScaleStr[0];
+		short editing = g_editing;
+
 		TriggerState t = g_triggerState;
-		Semaphore_pend(settingsSem);
+		Semaphore_post(settingsSem);
 
 		FillFrame(0); // clear frame buffer
 
@@ -449,16 +477,21 @@ void displayTask(UArg arg0, UArg arg1){
 			DrawLine(110, 6, 113, 3, 15);
 		}
 		//Draw the points
-		Semaphore_pend(localBufSem, BIOS_WAIT_FOREVER);
+		//Semaphore_pend(localBufSem, BIOS_WAIT_FOREVER);
+
+		unsigned int i;
 		for(i = 0; i < FRAME_SIZE_X - 1; i++){
 			int y1 = FRAME_SIZE_Y/2 - (int)round((g_localBuffer[i] - ADC_OFFSET) * scale_div);
 			int y2 = FRAME_SIZE_Y/2 - (int)round((g_localBuffer[i + 1] - ADC_OFFSET) * scale_div);
 			DrawLine(i,y1,i+1,y2,0xf);
 		}
-		Semaphore_post(localBufSem);
-		Semaphore_post(waveformSem);
+
 		//Push the Drawing Buffer
 		RIT128x96x4ImageDraw(g_pucFrame, 0, 0, FRAME_SIZE_X, FRAME_SIZE_Y);
+
+		//Semaphore_post(localBufSem);
+		Semaphore_post(waveformSem);
+
 	}
 }
 
