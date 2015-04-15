@@ -110,6 +110,7 @@ const char * const g_ppcTimeScaleStr[] = {
  */
 void configureAdc(void);
 void configureTimerA0();
+void configureGpio();
 void ADCISR(void);
 //Button Tick Callback
 void buttonClock(UArg arg0);
@@ -144,19 +145,21 @@ Void main() {
 	Error_Block eb;
 
 	// initialize the clock generator
-//	if (REVISION_IS_A2)
-//	{
-//		SysCtlLDOSet(SYSCTL_LDO_2_75V);
-//	}
-//
-//	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
-//			SYSCTL_XTAL_8MHZ);
-//	g_ulSystemClock = SysCtlClockGet();
+	//	if (REVISION_IS_A2)
+	//	{
+	//		SysCtlLDOSet(SYSCTL_LDO_2_75V);
+	//	}
+	//
+	//	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
+	//			SYSCTL_XTAL_8MHZ);
+	//	g_ulSystemClock = SysCtlClockGet();
 
 
 
 	RIT128x96x4Init(3500000); // initialize the OLED display
+	//Configure the ADC and GPIO
 	configureAdc();
+	configureGpio();
 
 	System_printf("enter main()\n");
 
@@ -215,6 +218,20 @@ void configureAdc(void) {
 
 }
 
+void configureGpio(){
+	//Configure the GPIO push buttons
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+	GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_1);
+	GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA,
+			GPIO_PIN_TYPE_STD_WPU);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+	GPIOPinTypeGPIOInput(GPIO_PORTE_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 |
+			GPIO_PIN_3);
+	GPIOPadConfigSet(GPIO_PORTE_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 |
+			GPIO_PIN_3, GPIO_STRENGTH_2MA,
+			GPIO_PIN_TYPE_STD_WPU);
+}
+
 void buttonClock(UArg arg0) {
 	//Notify the buttonTask that we need to scan the inputs
 	Semaphore_post(buttonScanSem);
@@ -228,15 +245,15 @@ void buttonTask(UArg arg0, UArg arg1) {
 	while (1) {
 		Semaphore_pend(buttonScanSem, BIOS_WAIT_FOREVER);
 
-//		presses = g_ulButtons;
-//		//Debounce the Buttons
-//		ButtonDebounce(
-//				((~GPIO_PORTF_DATA_R & GPIO_PIN_1) >> 1)
-//				| ((~GPIO_PORTE_DATA_R
-//						& (GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2
-//								| GPIO_PIN_3)) << 1));
-//		//get the presses
-//		presses = ~presses & g_ulButtons; // button presses
+		//		presses = g_ulButtons;
+		//		//Debounce the Buttons
+		//		ButtonDebounce(
+		//				((~GPIO_PORTF_DATA_R & GPIO_PIN_1) >> 1)
+		//				| ((~GPIO_PORTE_DATA_R
+		//						& (GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2
+		//								| GPIO_PIN_3)) << 1));
+		//		//get the presses
+		//		presses = ~presses & g_ulButtons; // button presses
 
 		char msg;
 		//Put the button that was pressed
@@ -306,7 +323,7 @@ void userInputTask(UArg arg0, UArg arg1) {
 				if (g_voltageDiv > 0) { //Decrement to lowest menu setting
 					g_voltageDiv--;
 					g_scaleDiv = (VIN * PIXELCNT)
-																			/ ((1 << ADCBITCNT) * g_voltageDivArray[g_voltageDiv]); //Redo Scale
+																					/ ((1 << ADCBITCNT) * g_voltageDivArray[g_voltageDiv]); //Redo Scale
 				}
 			} else if (g_editing == EDIT_TIMESCALE) {
 				//				 if (timerDiv > 0) { //Decrement to lowest menu setting
