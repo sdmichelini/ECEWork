@@ -31,6 +31,18 @@
 
 #include <math.h>
 
+#include "kiss_fft.h"
+#include "_kiss_fft_guts.h"
+
+#define PI 3.14159265358979
+#define NFFT 1024
+#define KISS_FFT_CFG_SIZE (sizeof(struct kiss_fft_state)+sizeof(kiss_fft_cpx)*(NFFT-1))
+
+static char kiss_fft_cfg_buffer[KISS_FFT_CFG_SIZE];//Kiss FFT config memory
+size_t buffer_size = KISS_FFT_CFG_SIZE;
+kiss_fft_cfg cfg;
+static kiss_fft_cpx in[NFFT], out[NFFT];
+
 //ADC Variables
 #define ADC_BUFFER_SIZE 2048//size of the buffer(power of 2)
 #define ADC_BUFFER_WRAP(i) ((i) & (ADC_BUFFER_SIZE - 1))//index wrapping macro
@@ -47,6 +59,8 @@ volatile unsigned long g_ulADCErrors = 0; //ADC missed deadlines
 
 //Waveform Buffer
 short g_localBuffer[FRAME_SIZE_X];
+//Spectrum Buffer
+float g_spectrumBuffer[FRAME_SIZE_X];
 
 //Button Press Variables
 #define SELECT_BUTTON 0x1
@@ -74,6 +88,11 @@ typedef enum {
 	kRisingEdge, kFallingEdge
 } TriggerState;
 
+//Possible States for the Waveform to be in
+typedef enum{
+	kNormal, kFft
+}WaveformState;
+
 //User Interface Variables
 TriggerState g_triggerState;
 //Menu Selection that is Currently Selected for Editing
@@ -82,6 +101,8 @@ short g_editing;
 short g_voltageDiv;
 //What scale are we on
 short g_scaleDiv;
+
+WaveformState g_waveState;
 
 //Voltage Scales
 const char * const g_ppcVoltageScaleStr[] = {
@@ -125,6 +146,8 @@ void displayTask(UArg arg0, UArg arg1);
 
 //Waveform Task
 void waveformTask(UArg arg0, UArg arg1);
+//FFT task
+void fftTask(UArg arg0, UArg arg1);
 
 unsigned long g_ulSystemClock;
 
@@ -154,9 +177,14 @@ Void main() {
 	//			SYSCTL_XTAL_8MHZ);
 	//	g_ulSystemClock = SysCtlClockGet();
 
-
+	g_waveState = kNormal;
+	unsigned int i;
+	for(i = 0; i < FRAME_SIZE_X; i++){
+		g_spectrumBuffer[i] = 0.0f;
+	}
 
 	RIT128x96x4Init(3500000); // initialize the OLED display
+	cfg = kiss_fft_alloc(NFFT, 0 , kiss_fft_cfg_buffer, &buffer_size);//Start up Kiss FFT
 	//Configure the ADC and GPIO
 	configureAdc();
 	configureGpio();
@@ -245,15 +273,15 @@ void buttonTask(UArg arg0, UArg arg1) {
 	while (1) {
 		Semaphore_pend(buttonScanSem, BIOS_WAIT_FOREVER);
 
-		//		presses = g_ulButtons;
-		//		//Debounce the Buttons
-		//		ButtonDebounce(
-		//				((~GPIO_PORTF_DATA_R & GPIO_PIN_1) >> 1)
-		//				| ((~GPIO_PORTE_DATA_R
-		//						& (GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2
-		//								| GPIO_PIN_3)) << 1));
-		//		//get the presses
-		//		presses = ~presses & g_ulButtons; // button presses
+		presses = g_ulButtons;
+		//Debounce the Buttons
+		ButtonDebounce(
+				((~GPIO_PORTF_DATA_R & GPIO_PIN_1) >> 1)
+				| ((~GPIO_PORTE_DATA_R
+						& (GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2
+								| GPIO_PIN_3)) << 1));
+		//get the presses
+		presses = ~presses & g_ulButtons; // button presses
 
 		char msg;
 		//Put the button that was pressed
@@ -292,10 +320,15 @@ void userInputTask(UArg arg0, UArg arg1) {
 		case SELECT_BUTTON:
 			//Select button pushed
 		{
-			if (g_triggerState == kRisingEdge) { //Switch Trigger Edge
-				g_triggerState = kFallingEdge;
-			} else {
-				g_triggerState = kRisingEdge;
+			//			if (g_triggerState == kRisingEdge) { //Switch Trigger Edge
+			//				g_triggerState = kFallingEdge;
+			//			} else {
+			//				g_triggerState = kRisingEdge;
+			//			}
+			if(g_waveState == kNormal){
+				g_waveState = kFft;
+			}else{
+				g_waveState = kNormal;
 			}
 			break;
 		}
@@ -323,7 +356,7 @@ void userInputTask(UArg arg0, UArg arg1) {
 				if (g_voltageDiv > 0) { //Decrement to lowest menu setting
 					g_voltageDiv--;
 					g_scaleDiv = (VIN * PIXELCNT)
-																					/ ((1 << ADCBITCNT) * g_voltageDivArray[g_voltageDiv]); //Redo Scale
+																													/ ((1 << ADCBITCNT) * g_voltageDivArray[g_voltageDiv]); //Redo Scale
 				}
 			} else if (g_editing == EDIT_TIMESCALE) {
 				//				 if (timerDiv > 0) { //Decrement to lowest menu setting
@@ -361,6 +394,7 @@ void userInputTask(UArg arg0, UArg arg1) {
 void waveformTask(UArg arg0, UArg arg1){
 	while(1){
 		Semaphore_pend(waveformSem, BIOS_WAIT_FOREVER);
+		Semaphore_pend(settingsSem,BIOS_WAIT_FOREVER);
 		//Where we start the search from(a half frame back)
 		int startingIndex = ADC_BUFFER_WRAP(g_iADCBufferIndex - (FRAME_SIZE_Y / 2));
 		//Where we first started
@@ -370,50 +404,79 @@ void waveformTask(UArg arg0, UArg arg1){
 		//How many loops we completed
 		int it = 0;
 
-		Semaphore_pend(settingsSem,BIOS_WAIT_FOREVER);
+
 		TriggerState t = g_triggerState;
+		WaveformState w = g_waveState;
 		Semaphore_post(settingsSem);
-		//Go til we are done
-		while(!finished){
-			//The index before the one we search
-			int prevIndex = ADC_BUFFER_WRAP(startingIndex - 1);
+		if(w == kNormal){
+			//Go til we are done
+			while(!finished){
+				//The index before the one we search
+				int prevIndex = ADC_BUFFER_WRAP(startingIndex - 1);
 
 
 
 
-			//What trigger is it
-			if(t == kRisingEdge){//Rising Edge
-				if((g_pusADCBuffer[prevIndex] < ADC_OFFSET)&&(g_pusADCBuffer[startingIndex] >= ADC_OFFSET)){
+				//What trigger is it
+				if(t == kRisingEdge){//Rising Edge
+					if((g_pusADCBuffer[prevIndex] < ADC_OFFSET)&&(g_pusADCBuffer[startingIndex] >= ADC_OFFSET)){
+						finished = 1;
+						break;
+					}
+				}else{//Falling Edge
+					if((g_pusADCBuffer[prevIndex] >= ADC_OFFSET)&&(g_pusADCBuffer[startingIndex] < ADC_OFFSET)){
+						finished = 1;
+						break;
+					}
+				}
+				//Searched over half of the buffer
+				if(it > (ADC_BUFFER_SIZE / 2)){//Can't Find Trigger
 					finished = 1;
+					startingIndex = firstStart;
 					break;
 				}
-			}else{//Falling Edge
-				if((g_pusADCBuffer[prevIndex] >= ADC_OFFSET)&&(g_pusADCBuffer[startingIndex] < ADC_OFFSET)){
-					finished = 1;
-					break;
-				}
-			}
-			//Searched over half of the buffer
-			if(it > (ADC_BUFFER_SIZE / 2)){//Can't Find Trigger
-				finished = 1;
-				startingIndex = firstStart;
-				break;
-			}
-			//Increment
-			it++;
+				//Increment
+				it++;
 
-			//Decrement the index
-			startingIndex = prevIndex;
-		}
-		//Now copy to local buffer
-		unsigned int i;
+				//Decrement the index
+				startingIndex = prevIndex;
+			}
+			//Now copy to local buffer
+			unsigned int i;
 
-		//use a for loop
-		Semaphore_pend(localBufSem,BIOS_WAIT_FOREVER);
-		for(i = 0; i < FRAME_SIZE_X; i++){
-			g_localBuffer[i] = g_pusADCBuffer[ADC_BUFFER_WRAP(startingIndex - (FRAME_SIZE_X / 2) + i)];
+			//use a for loop
+			Semaphore_pend(localBufSem,BIOS_WAIT_FOREVER);
+			for(i = 0; i < FRAME_SIZE_X; i++){
+				g_localBuffer[i] = g_pusADCBuffer[ADC_BUFFER_WRAP(startingIndex - (FRAME_SIZE_X / 2) + i)];
+			}
+			Semaphore_post(localBufSem);
+			Semaphore_post(displaySem);
+		}else{
+			unsigned int i;
+			//FFT
+			Semaphore_pend(localBufSem,BIOS_WAIT_FOREVER);
+			for(i = 0; i < NFFT; i++){
+				in[i].r = g_pusADCBuffer[ADC_BUFFER_WRAP(startingIndex - i - 1)];
+				in[i].i = 0;
+			}
+			Semaphore_post(localBufSem);
+			Semaphore_post(fftSem);
 		}
-		Semaphore_post(localBufSem);
+
+	}
+}
+
+void fftTask(UArg arg0, UArg arg1){
+	while(1){
+		Semaphore_pend(fftSem, BIOS_WAIT_FOREVER);
+
+		kiss_fft(cfg, in, out);
+		//Now convert to dB
+		unsigned int i = 0;
+		for(i = 0 ; i < FRAME_SIZE_X; i++){
+			g_spectrumBuffer[i] = (10.0f * log10(out[i].r*out[i].r + out[i].i*out[i].i)) + 9.0f;
+		}
+
 		Semaphore_post(displaySem);
 	}
 }
@@ -426,7 +489,7 @@ void displayTask(UArg arg0, UArg arg1){
 		//First draw the background
 		Semaphore_pend(settingsSem,BIOS_WAIT_FOREVER);
 		short voltageDiv = g_voltageDiv;
-
+		WaveformState w = g_waveState;
 		float scale_div = (VIN * PIXELCNT)/((1 << ADCBITCNT) * g_voltageDivArray[voltageDiv]);
 		const char * timeScale = g_ppcTimeScaleStr[0];
 		short editing = g_editing;
@@ -497,11 +560,21 @@ void displayTask(UArg arg0, UArg arg1){
 		//Semaphore_pend(localBufSem, BIOS_WAIT_FOREVER);
 
 		unsigned int i;
-		for(i = 0; i < FRAME_SIZE_X - 1; i++){
-			int y1 = FRAME_SIZE_Y/2 - (int)round((g_localBuffer[i] - ADC_OFFSET) * scale_div);
-			int y2 = FRAME_SIZE_Y/2 - (int)round((g_localBuffer[i + 1] - ADC_OFFSET) * scale_div);
-			DrawLine(i,y1,i+1,y2,0xf);
+		if(w == kNormal){
+			for(i = 0; i < FRAME_SIZE_X - 1; i++){
+				int y1 = FRAME_SIZE_Y/2 - (int)round((g_localBuffer[i] - ADC_OFFSET) * scale_div);
+				int y2 = FRAME_SIZE_Y/2 - (int)round((g_localBuffer[i + 1] - ADC_OFFSET) * scale_div);
+				DrawLine(i,y1,i+1,y2,0xf);
+			}
+		}else{
+			for(i = 0; i < FRAME_SIZE_X - 1; i++){
+				int y1 = (int)g_spectrumBuffer[i];
+				int y2 = (int)g_spectrumBuffer[i + 1];
+				DrawLine(i,y1,i+1,y2,0xf);
+			}
 		}
+
+
 
 		//Push the Drawing Buffer
 		RIT128x96x4ImageDraw(g_pucFrame, 0, 0, FRAME_SIZE_X, FRAME_SIZE_Y);
