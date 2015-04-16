@@ -83,6 +83,8 @@ float g_spectrumBuffer[FRAME_SIZE_X];
 #define FFT_GRID_SIZE 20
 #define FFT_TOP_GRID_HEIGHT 10
 
+#define DISPLAY_OFFSET 48.0f
+
 #define GRID_BRIGHTNESS 0x5
 #define TEXT_BRIGHTNESS 0xf
 
@@ -491,7 +493,7 @@ void fftTask(UArg arg0, UArg arg1){
 		//Now convert to dB
 		unsigned int i = 0;
 		for(i = 0 ; i < FRAME_SIZE_X; i++){
-			g_spectrumBuffer[i] = (g_decibalScale[scaleDiv] * log10(out[i].r*out[i].r + out[i].i*out[i].i)) + 10.0f;
+			g_spectrumBuffer[i] = (g_decibalScale[scaleDiv] * -1.0f * log10(out[i].r*out[i].r + out[i].i*out[i].i)) + (DISPLAY_OFFSET);
 		}
 
 		Semaphore_post(displaySem);
