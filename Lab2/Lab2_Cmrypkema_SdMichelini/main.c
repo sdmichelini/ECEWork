@@ -79,6 +79,10 @@ float g_spectrumBuffer[FRAME_SIZE_X];
 #define HORIZONTAL_DIVS 8
 #define VERTICAL_DIVS 11
 
+//Size of Grid for FFT
+#define FFT_GRID_SIZE 20
+#define FFT_TOP_GRID_HEIGHT 10
+
 #define GRID_BRIGHTNESS 0x5
 #define TEXT_BRIGHTNESS 0xf
 
@@ -109,6 +113,14 @@ const char * const g_ppcVoltageScaleStr[] = {
 		"100 mV","200 mV","500 mV","1 V"
 };
 
+const char * const g_decibalStrings[]={
+		" 5 dBV","10 dBV","20 dBV","40 dBV"
+};
+
+const float g_decibalScale[]={
+		5.0f,10.0f,20.0f,40.0f
+};
+
 //Voltage Settings
 float g_voltageDivArray[] = {
 		0.1f, 0.2f, 0.5f, 1.0f
@@ -125,6 +137,7 @@ const char * const g_ppcTimeScaleStr[] = {
 		"24 us","48 us","72 us","96 us"
 };
 
+const char * g_frequencyString = "7.1kHz";
 
 /*
  *  ======== taskFxn ========
@@ -356,7 +369,7 @@ void userInputTask(UArg arg0, UArg arg1) {
 				if (g_voltageDiv > 0) { //Decrement to lowest menu setting
 					g_voltageDiv--;
 					g_scaleDiv = (VIN * PIXELCNT)
-																													/ ((1 << ADCBITCNT) * g_voltageDivArray[g_voltageDiv]); //Redo Scale
+																																							/ ((1 << ADCBITCNT) * g_voltageDivArray[g_voltageDiv]); //Redo Scale
 				}
 			} else if (g_editing == EDIT_TIMESCALE) {
 				//				 if (timerDiv > 0) { //Decrement to lowest menu setting
@@ -469,12 +482,16 @@ void waveformTask(UArg arg0, UArg arg1){
 void fftTask(UArg arg0, UArg arg1){
 	while(1){
 		Semaphore_pend(fftSem, BIOS_WAIT_FOREVER);
+		Semaphore_pend(settingsSem, BIOS_WAIT_FOREVER);
+		short scaleDiv = g_voltageDiv;
+		Semaphore_post(settingsSem);
+
 
 		kiss_fft(cfg, in, out);
 		//Now convert to dB
 		unsigned int i = 0;
 		for(i = 0 ; i < FRAME_SIZE_X; i++){
-			g_spectrumBuffer[i] = (10.0f * log10(out[i].r*out[i].r + out[i].i*out[i].i)) + 9.0f;
+			g_spectrumBuffer[i] = (g_decibalScale[scaleDiv] * log10(out[i].r*out[i].r + out[i].i*out[i].i)) + 10.0f;
 		}
 
 		Semaphore_post(displaySem);
@@ -499,74 +516,108 @@ void displayTask(UArg arg0, UArg arg1){
 
 		FillFrame(0); // clear frame buffer
 
-		//Now draw the grid
-		unsigned int j;
-		for(j = 0; j < VERTICAL_DIVS; j++){
-			DrawLine((j * PIXELCNT) + 6, 0,(j * PIXELCNT) + 6, FRAME_SIZE_Y, GRID_BRIGHTNESS);//Draw Horizontal Lines
-		}
-		for(j = 0; j < HORIZONTAL_DIVS; j++){
-			DrawLine(0, (j * PIXELCNT), FRAME_SIZE_X,(j * PIXELCNT), GRID_BRIGHTNESS);//Draw Vertical Lines
-		}
 
-		//Draw the selection
-		//Draw either a box around time setting or voltage setting
-		switch(editing){
-		case EDIT_TIMESCALE:{
-			DrawFilledRectangle(5, 3, 35, 10, 0x7);
-			break;
-		}
-		case EDIT_VOLTAGE:{
-			if(voltageDiv != 3){
-				DrawFilledRectangle(44, 3, 79, 10, 0x7);
-			}else{
-				DrawFilledRectangle(44, 3, 44+20, 10, 0x7);
-			}
 
-			break;
-		}
-		default:
-			break;
-		}
 
-		//Time Scale
-		DrawString(6, 3, timeScale, 15, 0);
 
-		//Voltage Div
-		DrawString(44,3,g_ppcVoltageScaleStr[g_voltageDiv], 15, 0);
 
-		//Trigger
-		if(t == kRisingEdge){
-			//Top line
-			DrawLine(110, 0, 116, 0, 15);
-			//Middle Line
-			DrawLine(110, 0, 110, 8, 15);
-			//Bottom Line
-			DrawLine(104, 8, 110, 8, 15);
-			//Triangle
-			DrawLine(107, 6, 110, 3, 15);
-			DrawLine(110, 3, 113, 6, 15);
-		}else{
-			//Bottom line
-			DrawLine(110, 8, 116, 8, 15);
-			//Middle Line
-			DrawLine(110, 0, 110, 8, 15);
-			//Top
-			DrawLine(104, 0, 110, 0, 15);
-			//Triangle
-			DrawLine(107, 3, 110, 6, 15);
-			DrawLine(110, 6, 113, 3, 15);
-		}
 		//Draw the points
 		//Semaphore_pend(localBufSem, BIOS_WAIT_FOREVER);
 
 		unsigned int i;
+		//Draw Code for Waveform
 		if(w == kNormal){
+			//FFT has different waveform grid
+			//Now draw the grid
+			unsigned int j;
+			for(j = 0; j < VERTICAL_DIVS; j++){
+				DrawLine((j * PIXELCNT) + 6, 0,(j * PIXELCNT) + 6, FRAME_SIZE_Y, GRID_BRIGHTNESS);//Draw Horizontal Lines
+			}
+			for(j = 0; j < HORIZONTAL_DIVS; j++){
+				DrawLine(0, (j * PIXELCNT), FRAME_SIZE_X,(j * PIXELCNT), GRID_BRIGHTNESS);//Draw Vertical Lines
+			}
+			//Draw the selection
+			//Draw either a box around time setting or voltage setting
+			switch(editing){
+			case EDIT_TIMESCALE:{
+				DrawFilledRectangle(5, 3, 35, 10, 0x7);
+				break;
+			}
+			case EDIT_VOLTAGE:{
+				if(voltageDiv != 3){
+					DrawFilledRectangle(44, 3, 79, 10, 0x7);
+				}else{
+					DrawFilledRectangle(44, 3, 44+20, 10, 0x7);
+				}
+
+				break;
+			}
+			default:
+				break;
+			}
+
+			//Time Scale
+			DrawString(6, 3, timeScale, 15, 0);
+
+			//Voltage Div
+			DrawString(44,3,g_ppcVoltageScaleStr[g_voltageDiv], 15, 0);
+
+			//Trigger
+			if(t == kRisingEdge){
+				//Top line
+				DrawLine(110, 0, 116, 0, 15);
+				//Middle Line
+				DrawLine(110, 0, 110, 8, 15);
+				//Bottom Line
+				DrawLine(104, 8, 110, 8, 15);
+				//Triangle
+				DrawLine(107, 6, 110, 3, 15);
+				DrawLine(110, 3, 113, 6, 15);
+			}else{
+				//Bottom line
+				DrawLine(110, 8, 116, 8, 15);
+				//Middle Line
+				DrawLine(110, 0, 110, 8, 15);
+				//Top
+				DrawLine(104, 0, 110, 0, 15);
+				//Triangle
+				DrawLine(107, 3, 110, 6, 15);
+				DrawLine(110, 6, 113, 3, 15);
+			}
+
 			for(i = 0; i < FRAME_SIZE_X - 1; i++){
 				int y1 = FRAME_SIZE_Y/2 - (int)round((g_localBuffer[i] - ADC_OFFSET) * scale_div);
 				int y2 = FRAME_SIZE_Y/2 - (int)round((g_localBuffer[i + 1] - ADC_OFFSET) * scale_div);
 				DrawLine(i,y1,i+1,y2,0xf);
 			}
-		}else{
+		}else{//Draw Code for FFT
+			//Grid
+			unsigned int p = 0;
+			for(p = 1; p <= 5; p++){
+				DrawLine(0, -FFT_TOP_GRID_HEIGHT + (p * FFT_GRID_SIZE), FRAME_SIZE_X,  -FFT_TOP_GRID_HEIGHT + (p * FFT_GRID_SIZE), GRID_BRIGHTNESS);
+			}
+			for(p = 1; p <= 6; p++){
+				DrawLine(p * FFT_GRID_SIZE, 0 , p * FFT_GRID_SIZE, FRAME_SIZE_X, GRID_BRIGHTNESS);
+			}
+
+			//Menu Code
+			switch(editing){
+			case EDIT_TIMESCALE:{
+				DrawFilledRectangle(5, 3, 40, 10, 0x7);
+				break;
+			}
+			case EDIT_VOLTAGE:{
+				DrawFilledRectangle(49, 3, 84, 10, 0x7);
+				break;
+			}
+			default:
+				break;
+			}
+			//Frequency
+			DrawString(6, 3, g_frequencyString, 15, 0);
+
+			DrawString(49,3,g_decibalStrings[voltageDiv], 15, 0);
+
 			for(i = 0; i < FRAME_SIZE_X - 1; i++){
 				int y1 = (int)g_spectrumBuffer[i];
 				int y2 = (int)g_spectrumBuffer[i + 1];
