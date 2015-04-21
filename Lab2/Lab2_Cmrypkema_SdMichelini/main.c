@@ -34,10 +34,18 @@
 #include "kiss_fft.h"
 #include "_kiss_fft_guts.h"
 
+/*
+ * KISS FFT Constants
+ */
 #define PI 3.14159265358979
+//Size of Buffer
 #define NFFT 1024
+//From Kiss FFT examples
 #define KISS_FFT_CFG_SIZE (sizeof(struct kiss_fft_state)+sizeof(kiss_fft_cpx)*(NFFT-1))
 
+/*
+ * Kiss FFT Variabless
+ */
 static char kiss_fft_cfg_buffer[KISS_FFT_CFG_SIZE];//Kiss FFT config memory
 size_t buffer_size = KISS_FFT_CFG_SIZE;
 kiss_fft_cfg cfg;
@@ -51,7 +59,7 @@ volatile unsigned short g_pusADCBuffer[ADC_BUFFER_SIZE]; //circular buffer of AD
 volatile unsigned long g_ulADCErrors = 0; //ADC missed deadlines
 //ADC Bits
 #define ADCBITCNT 10 //10 bit ADC
-#define PIXELCNT 12
+#define PIXELCNT 12//Pixels
 #define VIN 6 //In V
 
 //ADC Offset
@@ -82,9 +90,9 @@ float g_spectrumBuffer[FRAME_SIZE_X];
 //Size of Grid for FFT
 #define FFT_GRID_SIZE 20
 #define FFT_TOP_GRID_HEIGHT 10
-
+//FFT display offset
 #define DISPLAY_OFFSET 48.0f
-
+//How bright objects are on screen
 #define GRID_BRIGHTNESS 0x5
 #define TEXT_BRIGHTNESS 0xf
 
@@ -114,11 +122,11 @@ WaveformState g_waveState;
 const char * const g_ppcVoltageScaleStr[] = {
 		"100 mV","200 mV","500 mV","1 V"
 };
-
+//String representing decibals that we can be at
 const char * const g_decibalStrings[]={
 		" 5 dBV","10 dBV","20 dBV","40 dBV"
 };
-
+//Decibals we can be at
 const float g_decibalScale[]={
 		5.0f,10.0f,20.0f,40.0f
 };
@@ -138,11 +146,11 @@ unsigned long g_timerValues[] = {
 const char * const g_ppcTimeScaleStr[] = {
 		"24 us","48 us","72 us","96 us"
 };
-
+//Doesn't change. Frequency of oscillation
 const char * g_frequencyString = "7.1kHz";
 
 /*
- *  ======== taskFxn ========
+ * Configuration Prototypes
  */
 void configureAdc(void);
 void configureTimerA0();
@@ -150,7 +158,7 @@ void configureGpio();
 void ADCISR(void);
 //Button Tick Callback
 void buttonClock(UArg arg0);
-
+//Task to notify UI task of button presses
 void buttonTask(UArg arg0, UArg arg1);
 
 //User Input Task
@@ -166,34 +174,17 @@ void fftTask(UArg arg0, UArg arg1);
 
 unsigned long g_ulSystemClock;
 
-//Void taskFxn(UArg a0, UArg a1)
-//{
-//    System_printf("enter taskFxn()\n");
-//
-//    Task_sleep(10);
-//
-//    System_printf("exit taskFxn()\n");
-//}
-
 /*
  *  ======== main ========
  */
 Void main() {
-	//Task_Handle task;
+
 	Error_Block eb;
 
-	// initialize the clock generator
-	//	if (REVISION_IS_A2)
-	//	{
-	//		SysCtlLDOSet(SYSCTL_LDO_2_75V);
-	//	}
-	//
-	//	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
-	//			SYSCTL_XTAL_8MHZ);
-	//	g_ulSystemClock = SysCtlClockGet();
-
+//	Normal State to Begin With
 	g_waveState = kNormal;
 	unsigned int i;
+//	Zero the Spectrum Buffer
 	for(i = 0; i < FRAME_SIZE_X; i++){
 		g_spectrumBuffer[i] = 0.0f;
 	}
@@ -207,13 +198,6 @@ Void main() {
 	System_printf("enter main()\n");
 
 	Error_init(&eb);
-	//    task = Task_create(taskFxn, NULL, &eb);
-	//    if (task == NULL) {
-	//        System_printf("Task_create() failed!\n");
-	//        BIOS_exit(0);
-	//    }
-
-
 	BIOS_start(); /* enable interrupts and start SYS/BIOS */
 }
 
@@ -224,7 +208,7 @@ void ADCISR(void) {
 		g_ulADCErrors++;
 		ADC0_OSTAT_R = ADC_OSTAT_OV0;
 	}
-
+//Buffer Index we are inserting into
 	int buffer_index = ADC_BUFFER_WRAP(g_iADCBufferIndex + 1);
 	//Read from ADC
 	g_pusADCBuffer[buffer_index] = ADC0_SSFIFO0_R;
@@ -325,6 +309,7 @@ void buttonTask(UArg arg0, UArg arg1) {
 }
 
 void userInputTask(UArg arg0, UArg arg1) {
+	//What type of message was sent
 	char msg;
 
 	while (1) {
@@ -335,11 +320,6 @@ void userInputTask(UArg arg0, UArg arg1) {
 		case SELECT_BUTTON:
 			//Select button pushed
 		{
-			//			if (g_triggerState == kRisingEdge) { //Switch Trigger Edge
-			//				g_triggerState = kFallingEdge;
-			//			} else {
-			//				g_triggerState = kRisingEdge;
-			//			}
 			if(g_waveState == kNormal){
 				g_waveState = kFft;
 			}else{
@@ -355,12 +335,6 @@ void userInputTask(UArg arg0, UArg arg1) {
 					g_voltageDiv++;
 					g_scaleDiv = (VIN * PIXELCNT) / ((1 << ADCBITCNT) * g_voltageDivArray[g_voltageDiv]); //Readjust the Scale
 				}
-			} else if (g_editing == EDIT_TIMESCALE) {
-				//				 if (timerDiv < EDIT_OPTIONS) { //Increment Time Scale Unless it Reaches it's Max
-				//					 timerDiv++;
-				//					 setupAdcTimer(g_timerValues[timerDiv]); //Reconfigure ADC Trigger Timer
-				//					 configureAdc_timer(); //Reconfigure ADC
-				//				 }
 			}
 			break;
 		}
@@ -373,13 +347,6 @@ void userInputTask(UArg arg0, UArg arg1) {
 					g_scaleDiv = (VIN * PIXELCNT)
 																																							/ ((1 << ADCBITCNT) * g_voltageDivArray[g_voltageDiv]); //Redo Scale
 				}
-			} else if (g_editing == EDIT_TIMESCALE) {
-				//				 if (timerDiv > 0) { //Decrement to lowest menu setting
-				//					 timerDiv--;
-				//					 //Redo ADC and Timer
-				//					 setupAdcTimer(g_timerValues[timerDiv]);
-				//					 configureAdc_timer();
-				//				 }
 			}
 			break;
 		}
@@ -399,6 +366,7 @@ void userInputTask(UArg arg0, UArg arg1) {
 
 			break;
 		}
+		//Done editing settings
 		Semaphore_post(settingsSem);
 		//Let the display know
 		Semaphore_post(displaySem);
@@ -409,7 +377,7 @@ void userInputTask(UArg arg0, UArg arg1) {
 void waveformTask(UArg arg0, UArg arg1){
 	while(1){
 		Semaphore_pend(waveformSem, BIOS_WAIT_FOREVER);
-		Semaphore_pend(settingsSem,BIOS_WAIT_FOREVER);
+
 		//Where we start the search from(a half frame back)
 		int startingIndex = ADC_BUFFER_WRAP(g_iADCBufferIndex - (FRAME_SIZE_Y / 2));
 		//Where we first started
@@ -419,7 +387,7 @@ void waveformTask(UArg arg0, UArg arg1){
 		//How many loops we completed
 		int it = 0;
 
-
+		Semaphore_pend(settingsSem,BIOS_WAIT_FOREVER);
 		TriggerState t = g_triggerState;
 		WaveformState w = g_waveState;
 		Semaphore_post(settingsSem);
@@ -428,10 +396,6 @@ void waveformTask(UArg arg0, UArg arg1){
 			while(!finished){
 				//The index before the one we search
 				int prevIndex = ADC_BUFFER_WRAP(startingIndex - 1);
-
-
-
-
 				//What trigger is it
 				if(t == kRisingEdge){//Rising Edge
 					if((g_pusADCBuffer[prevIndex] < ADC_OFFSET)&&(g_pusADCBuffer[startingIndex] >= ADC_OFFSET)){
@@ -464,6 +428,7 @@ void waveformTask(UArg arg0, UArg arg1){
 			for(i = 0; i < FRAME_SIZE_X; i++){
 				g_localBuffer[i] = g_pusADCBuffer[ADC_BUFFER_WRAP(startingIndex - (FRAME_SIZE_X / 2) + i)];
 			}
+			//done with local buffer
 			Semaphore_post(localBufSem);
 			Semaphore_post(displaySem);
 		}else{
@@ -483,11 +448,11 @@ void waveformTask(UArg arg0, UArg arg1){
 
 void fftTask(UArg arg0, UArg arg1){
 	while(1){
+		//Grab settings
 		Semaphore_pend(fftSem, BIOS_WAIT_FOREVER);
 		Semaphore_pend(settingsSem, BIOS_WAIT_FOREVER);
 		short scaleDiv = g_voltageDiv;
 		Semaphore_post(settingsSem);
-
 
 		kiss_fft(cfg, in, out);
 		//Now convert to dB
@@ -517,12 +482,6 @@ void displayTask(UArg arg0, UArg arg1){
 		Semaphore_post(settingsSem);
 
 		FillFrame(0); // clear frame buffer
-
-
-
-
-
-
 		//Draw the points
 		//Semaphore_pend(localBufSem, BIOS_WAIT_FOREVER);
 
@@ -551,7 +510,6 @@ void displayTask(UArg arg0, UArg arg1){
 				}else{
 					DrawFilledRectangle(44, 3, 44+20, 10, 0x7);
 				}
-
 				break;
 			}
 			default:
@@ -587,6 +545,7 @@ void displayTask(UArg arg0, UArg arg1){
 				DrawLine(110, 6, 113, 3, 15);
 			}
 
+			//Draw the Waveform
 			for(i = 0; i < FRAME_SIZE_X - 1; i++){
 				int y1 = FRAME_SIZE_Y/2 - (int)round((g_localBuffer[i] - ADC_OFFSET) * scale_div);
 				int y2 = FRAME_SIZE_Y/2 - (int)round((g_localBuffer[i + 1] - ADC_OFFSET) * scale_div);
@@ -626,15 +585,10 @@ void displayTask(UArg arg0, UArg arg1){
 				DrawLine(i,y1,i+1,y2,0xf);
 			}
 		}
-
-
-
 		//Push the Drawing Buffer
 		RIT128x96x4ImageDraw(g_pucFrame, 0, 0, FRAME_SIZE_X, FRAME_SIZE_Y);
-
 		//Semaphore_post(localBufSem);
 		Semaphore_post(waveformSem);
-
 	}
 }
 
