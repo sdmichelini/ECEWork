@@ -9,8 +9,8 @@
  */
 
 
--l"M:\Git\ECEWork\Lab2\Lab2_Cmrypkema_SdMichelini\Debug\configPkg\package\cfg\app_pem3.oem3"
--l"M:\Git\ECEWork\Lab2\Lab2_Cmrypkema_SdMichelini\src\sysbios\sysbios.aem3"
+-l"M:\Git\ECEWork\Lab3\Lab2_Cmrypkema_SdMichelini\Debug\configPkg\package\cfg\app_pem3.oem3"
+-l"M:\Git\ECEWork\Lab3\Lab2_Cmrypkema_SdMichelini\src\sysbios\sysbios.aem3"
 -l"C:\ti\xdctools_3_25_00_48\packages\ti\catalog\arm\cortexm3\lm3init\lib\Boot.aem3"
 -l"C:\ti\xdctools_3_25_00_48\packages\ti\targets\arm\rtsarm\lib\ti.targets.arm.rtsarm.aem3"
 -l"C:\ti\xdctools_3_25_00_48\packages\ti\targets\arm\rtsarm\lib\boot.aem3"

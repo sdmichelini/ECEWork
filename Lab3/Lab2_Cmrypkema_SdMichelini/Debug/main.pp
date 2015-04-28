@@ -9,7 +9,7 @@ main.obj: C:/ti/xdctools_3_25_00_48/packages/ti/targets/arm/elf/M3.h
 main.obj: C:/ti/xdctools_3_25_00_48/packages/ti/targets/std.h
 main.obj: C:/ti/ccsv5/tools/compiler/arm_5.0.4/include/stdint.h
 main.obj: C:/ti/xdctools_3_25_00_48/packages/xdc/cfg/global.h
-main.obj: M:/Git/ECEWork/Lab2/Lab2_Cmrypkema_SdMichelini/Debug/configPkg/package/cfg/app_pem3.h
+main.obj: M:/Git/ECEWork/Lab3/Lab2_Cmrypkema_SdMichelini/Debug/configPkg/package/cfg/app_pem3.h
 main.obj: C:/ti/bios_6_35_01_29/packages/ti/sysbios/family/arm/m3/Hwi.h
 main.obj: C:/ti/xdctools_3_25_00_48/packages/xdc/runtime/xdc.h
 main.obj: C:/ti/xdctools_3_25_00_48/packages/xdc/runtime/Types.h
@@ -261,7 +261,7 @@ C:/ti/xdctools_3_25_00_48/packages/ti/targets/arm/elf/M3.h:
 C:/ti/xdctools_3_25_00_48/packages/ti/targets/std.h: 
 C:/ti/ccsv5/tools/compiler/arm_5.0.4/include/stdint.h: 
 C:/ti/xdctools_3_25_00_48/packages/xdc/cfg/global.h: 
-M:/Git/ECEWork/Lab2/Lab2_Cmrypkema_SdMichelini/Debug/configPkg/package/cfg/app_pem3.h: 
+M:/Git/ECEWork/Lab3/Lab2_Cmrypkema_SdMichelini/Debug/configPkg/package/cfg/app_pem3.h: 
 C:/ti/bios_6_35_01_29/packages/ti/sysbios/family/arm/m3/Hwi.h: 
 C:/ti/xdctools_3_25_00_48/packages/xdc/runtime/xdc.h: 
 C:/ti/xdctools_3_25_00_48/packages/xdc/runtime/Types.h: 

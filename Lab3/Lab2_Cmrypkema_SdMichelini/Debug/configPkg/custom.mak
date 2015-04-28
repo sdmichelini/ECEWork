@@ -2,4 +2,4 @@
 .configuro: .libraries,em3 linker.cmd package/cfg/app_pem3.oem3
 
 linker.cmd: package/cfg/app_pem3.xdl
-	$(SED) 's"^\"\(package/cfg/app_pem3cfg.cmd\)\"$""\"M:/Git/ECEWork/Lab2/Lab2_Cmrypkema_SdMichelini/Debug/configPkg/\1\""' package/cfg/app_pem3.xdl > $@
+	$(SED) 's"^\"\(package/cfg/app_pem3cfg.cmd\)\"$""\"M:/Git/ECEWork/Lab3/Lab2_Cmrypkema_SdMichelini/Debug/configPkg/\1\""' package/cfg/app_pem3.xdl > $@

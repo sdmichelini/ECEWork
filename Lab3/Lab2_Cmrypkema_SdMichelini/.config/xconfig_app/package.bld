@@ -11,7 +11,7 @@ var makeAssembly = false;
 var Executable = xdc.module('xdc.bld.Executable');
 
 var exeOpts = new Executable.Attrs({
-        cfgScript: 'M:/Git/ECEWork/Lab2/Lab2_Cmrypkema_SdMichelini/app.cfg',
+        cfgScript: 'M:/Git/ECEWork/Lab3/Lab2_Cmrypkema_SdMichelini/app.cfg',
         profile: 'release',
         cfgHome: 'xconfig_app',
 });
@@ -40,8 +40,8 @@ else {
 }
 
 var thisObj = {
-    cfg:        'M:/Git/ECEWork/Lab2/Lab2_Cmrypkema_SdMichelini/app.cfg',
-    outputPath: 'M:/Git/ECEWork/Lab2/Lab2_Cmrypkema_SdMichelini/.config/xconfig_app',
+    cfg:        'M:/Git/ECEWork/Lab3/Lab2_Cmrypkema_SdMichelini/app.cfg',
+    outputPath: 'M:/Git/ECEWork/Lab3/Lab2_Cmrypkema_SdMichelini/.config/xconfig_app',
     exeName:    'app' + suffix,
     exeIntName: 'app' + suffix.replace('.', '_'),
     targ:       targ,
