@@ -34,6 +34,8 @@
 #include "kiss_fft.h"
 #include "_kiss_fft_guts.h"
 
+#include "network.h"
+
 /*
  * KISS FFT Constants
  */
@@ -194,6 +196,8 @@ Void main() {
 	//Configure the ADC and GPIO
 	configureAdc();
 	configureGpio();
+	//Init the CAN
+	NetworkInit();
 
 	System_printf("enter main()\n");
 
