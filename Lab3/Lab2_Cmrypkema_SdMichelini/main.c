@@ -174,6 +174,10 @@ void waveformTask(UArg arg0, UArg arg1);
 //FFT task
 void fftTask(UArg arg0, UArg arg1);
 
+//Draw the Frequency Recieved from the CANBus
+//Frequency is in mHz
+void drawFrequency(unsigned long freq);
+
 unsigned long g_ulSystemClock;
 
 /*
@@ -477,6 +481,22 @@ void fftTask(UArg arg0, UArg arg1){
 
 		Semaphore_post(displaySem);
 	}
+}
+
+void drawFrequency(unsigned long freq){
+	//Get the lower three digits
+	unsigned long lowerThree = (freq % 1000);
+	//Upper Three
+	unsigned long upper = (freq / 1000);
+
+	//Make a Buffer to Display to the Screen
+	char freqStrBuf[10];
+
+	//Now copy the strings into the buffer
+	usprintf(freqStrBuf, "%06u.%03u",upper,lowerThree);
+
+	//Draw it to the Display
+	DrawString(10, 80, freqStrBuf, 10, false);
 }
 
 void displayTask(UArg arg0, UArg arg1){
