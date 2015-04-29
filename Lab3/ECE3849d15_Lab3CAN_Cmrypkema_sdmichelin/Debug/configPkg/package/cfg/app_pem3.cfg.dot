@@ -5,7 +5,7 @@ digraph configuration {
     concentrate=true;
     compound=true;
     label="\nConfiguration for configPkg/app.xem3"
-  node [font=Helvetica, fontsize=14, fontcolor=black];  subgraph cluster0 {label=""; __cfg [label="M:/3849/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/app.cfg", color=white, fontcolor=blue];
+  node [font=Helvetica, fontsize=14, fontcolor=black];  subgraph cluster0 {label=""; __cfg [label="M:/ECE3849/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/app.cfg", color=white, fontcolor=blue];
     node [font=Helvetica, fontsize=10];    subgraph cluster1 {
         label="";
         xdc_services_global__top [shape=box,label="xdc.services.global\n1, 0, 0", color=white];
@@ -97,9 +97,6 @@ digraph configuration {
         xdc_runtime_Memory [style=filled,fillcolor=lightgray, label="Memory"];
         xdc_runtime__top -> xdc_runtime_Memory[style=invis];
         xdc_runtime_Memory -> xdc_runtime__bot[style=invis];
-        xdc_runtime_HeapMin [style=filled,fillcolor=lightgray, label="HeapMin"];
-        xdc_runtime__top -> xdc_runtime_HeapMin[style=invis];
-        xdc_runtime_HeapMin -> xdc_runtime__bot[style=invis];
         xdc_runtime_Registry [style=filled,fillcolor=lightgray, label="Registry"];
         xdc_runtime__top -> xdc_runtime_Registry[style=invis];
         xdc_runtime_Registry -> xdc_runtime__bot[style=invis];
@@ -353,19 +350,30 @@ digraph configuration {
     }
     subgraph cluster37 {
         label="";
-        ti_sysbios_utils__top [shape=box,label="ti.sysbios.utils\n2, 0, 0, 0", color=white];
-        ti_sysbios_utils__bot [shape=point,label="", style=invis];
+        ti_sysbios_heaps__top [shape=box,label="ti.sysbios.heaps\n2, 0, 0, 0", color=white];
+        ti_sysbios_heaps__bot [shape=point,label="", style=invis];
+        ti_sysbios_heaps_HeapMem [style=filled,fillcolor=lightgray, label="HeapMem"];
+        ti_sysbios_heaps__top -> ti_sysbios_heaps_HeapMem[style=invis];
+        ti_sysbios_heaps_HeapMem -> ti_sysbios_heaps__bot[style=invis];
+        ti_sysbios_heaps_HeapMem_Module_GateProxy [style=filled,fillcolor=lightgray, label="HeapMem_Module_GateProxy"];
+        ti_sysbios_heaps__top -> ti_sysbios_heaps_HeapMem_Module_GateProxy[style=invis];
+        ti_sysbios_heaps_HeapMem_Module_GateProxy -> ti_sysbios_heaps__bot[style=invis];
     }
     subgraph cluster38 {
         label="";
-        configPkg__top [shape=box,label="configPkg\n", color=white];
+        ti_sysbios_utils__top [shape=box,label="ti.sysbios.utils\n2, 0, 0, 0", color=white];
+        ti_sysbios_utils__bot [shape=point,label="", style=invis];
     }
     subgraph cluster39 {
+        label="";
+        configPkg__top [shape=box,label="configPkg\n", color=white];
+    }
+    subgraph cluster40 {
         label="";
         xdc_services_io__top [shape=box,label="xdc.services.io\n1, 0, 0", color=white];
         xdc_services_io__bot [shape=point,label="", style=invis];
     }
-    subgraph cluster40 {
+    subgraph cluster41 {
         label="";
         ti_sysbios_family_arm_ducati__top [shape=box,label="ti.sysbios.family.arm.ducati\n2, 0, 0, 0", color=white];
         ti_sysbios_family_arm_ducati__bot [shape=point,label="", style=invis];
@@ -391,9 +399,11 @@ digraph configuration {
     ti_targets_arm_elf_M3__1_0_5__0_1 [shape=record,label="ti.targets.arm.elf.M3|1,0,5.0,1",style=filled, fillcolor=lightgrey];
     ti_sysbios_xdcruntime__bot -> ti_targets_arm_elf_M3__1_0_5__0_1 [ltail=cluster36];
     ti_targets_arm_elf_M3__1_0_5__0_1 [shape=record,label="ti.targets.arm.elf.M3|1,0,5.0,1",style=filled, fillcolor=lightgrey];
-    ti_sysbios_utils__bot -> ti_targets_arm_elf_M3__1_0_5__0_1 [ltail=cluster37];
-    ti_targets_arm_elf_M3__1_0_5__0_4 [shape=record,label="ti.targets.arm.elf.M3|1,0,5.0,4",style=filled, fillcolor=lightgrey];
-    configPkg__top -> ti_targets_arm_elf_M3__1_0_5__0_4 [ltail=cluster38];
+    ti_sysbios_heaps__bot -> ti_targets_arm_elf_M3__1_0_5__0_1 [ltail=cluster37];
     ti_targets_arm_elf_M3__1_0_5__0_1 [shape=record,label="ti.targets.arm.elf.M3|1,0,5.0,1",style=filled, fillcolor=lightgrey];
-    ti_sysbios_family_arm_ducati__bot -> ti_targets_arm_elf_M3__1_0_5__0_1 [ltail=cluster40];
+    ti_sysbios_utils__bot -> ti_targets_arm_elf_M3__1_0_5__0_1 [ltail=cluster38];
+    ti_targets_arm_elf_M3__1_0_5__0_4 [shape=record,label="ti.targets.arm.elf.M3|1,0,5.0,4",style=filled, fillcolor=lightgrey];
+    configPkg__top -> ti_targets_arm_elf_M3__1_0_5__0_4 [ltail=cluster39];
+    ti_targets_arm_elf_M3__1_0_5__0_1 [shape=record,label="ti.targets.arm.elf.M3|1,0,5.0,1",style=filled, fillcolor=lightgrey];
+    ti_sysbios_family_arm_ducati__bot -> ti_targets_arm_elf_M3__1_0_5__0_1 [ltail=cluster41];
 }

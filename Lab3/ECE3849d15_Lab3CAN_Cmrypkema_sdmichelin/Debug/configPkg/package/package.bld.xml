@@ -7,7 +7,7 @@
         <srcFile name="package/cfg/app_pem3.c"/>
     </sources>
     <configscripts>
-        <srcFile name="M:/3849/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/app.cfg"/>
+        <srcFile name="M:/ECE3849/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/app.cfg"/>
     </configscripts>
     <makefiles>
         <srcFile name="package.mak" src="package.bld"/>
@@ -44,7 +44,7 @@
         isPartial="false"
         xCfgScript="package/cfg/app_pem3.cfg"
         xCfgPrefix="package/cfg/app_pem3"
-        cfgScript="M:/3849/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/app.cfg"
+        cfgScript="M:/ECE3849/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/app.cfg"
         cfgArgs="null"
         />
     </configurations>
@@ -56,7 +56,7 @@
         profile="release"
         xCfgScript="package/cfg/app_pem3.cfg"
         xCfgPrefix="package/cfg/app_pem3"
-        cfgScript="M:/3849/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/app.cfg"
+        cfgScript="M:/ECE3849/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/app.cfg"
         cfgArgs="null"
         />
     </executables>

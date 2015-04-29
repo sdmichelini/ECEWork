@@ -173,6 +173,7 @@ main.obj: C:/StellarisWare/driverlib/can.h
 main.obj: C:/StellarisWare/driverlib/sysctl.h
 main.obj: C:/StellarisWare/driverlib/gpio.h
 main.obj: C:/StellarisWare/driverlib/pin_map.h
+main.obj: C:/StellarisWare/driverlib/timer.h
 
 ../main.c: 
 C:/ti/xdctools_3_25_00_48/packages/xdc/std.h: 
@@ -347,3 +348,4 @@ C:/StellarisWare/driverlib/can.h:
 C:/StellarisWare/driverlib/sysctl.h: 
 C:/StellarisWare/driverlib/gpio.h: 
 C:/StellarisWare/driverlib/pin_map.h: 
+C:/StellarisWare/driverlib/timer.h: 

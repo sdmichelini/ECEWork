@@ -24,6 +24,7 @@
 #include "driverlib/can.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/gpio.h"
+#include "driverlib/timer.h"
 
 ///*
 // *  ======== taskFxn ========
@@ -41,6 +42,7 @@
  *  ======== main ========
  */
 void configureComparator(void);
+void configureTimerACapture(void);
 void CaptureIsr(void);
 
 #define SAMPLE_SIZE 10
@@ -56,8 +58,10 @@ long GetAverageSamples();
 //Filter Variables
 int g_filterIndex;
 int g_size;
-//Buffer to Hold the Samples
+//Circular Buffer to Hold the Samples
 long g_samples[SAMPLE_SIZE];
+
+void periodicScan(UArg arg0);
 
 Void main()
 { 
@@ -74,7 +78,13 @@ Void main()
 //    }
 	InitSamples();
 	configureComparator();
+	configureTimerACapture();
     BIOS_start();     /* enable interrupts and start SYS/BIOS */
+}
+
+void periodicScan(UArg ar0){
+	long average = GetAverageSamples();
+
 }
 
 /*
@@ -105,13 +115,17 @@ void CaptureIsr(void){
 
 void InitSamples(){
 	unsigned int i; 
+	//Set the buffer to zero initially
 	for(i = 0; i < SAMPLE_SIZE; i++){
 		g_samples[i] = 0;
 	}
 	g_filterIndex = 0;
-	g_empty = 0;
+	//Accounts for First couple samples
+	g_size = 0;
 }
-
+/*
+ * Add's a Data Sample to the Circular Buffer
+ */
 void AddDataSample(long sample){
 	if(g_filterIndex > SAMPLE_SIZE){
 		g_filterIndex = 0;
@@ -123,7 +137,9 @@ void AddDataSample(long sample){
 	}
 	g_filterIndex++;
 }
-
+/*
+ * Get's the Average from the Samples Buffer
+ */
 long GetAverageSamples(){
 	unsigned int i;
 	long sum = 0;
@@ -135,6 +151,18 @@ long GetAverageSamples(){
 	}else{
 		return sum/g_size;
 	}
+}
+
+void configureTimerACapture(void){
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+	GPIODirModeSet(GPIO_PORTB_BASE, GPIO_PIN_0, GPIO_DIR_MODE_HW); // CCP0 input
+	GPIOPadConfigSet(GPIO_PORTB_BASE, GPIO_PIN_0, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+	TimerDisable(TIMER0_BASE, TIMER_BOTH);
+	TimerConfigure(TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME);
+	TimerControlEvent(TIMER0_BASE, TIMER_A, TIMER_EVENT_POS_EDGE);
+	TimerLoadSet(TIMER0_BASE, TIMER_A, 0xffff);
+	TimerIntEnable(TIMER0_BASE, TIMER_CAPA_EVENT);
+	TimerEnable(TIMER0_BASE, TIMER_A);
 }
 
 void configureComparator(void){

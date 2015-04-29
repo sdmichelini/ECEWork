@@ -1,6 +1,6 @@
 #
 # This file was generated based on the configuration script:
-#     M:\3849\ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin\app.cfg
+#     M:\ECE3849\Lab3\ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin\app.cfg
 #
 # This makefile may be included in other makefiles that need to build
 # the libraries containing the compiled source files generated as
@@ -14,7 +14,7 @@
 #
 # The absolute path to the generated source directory (at the time the
 # sources were generated) is:
-#    M:\3849\ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin\src
+#    M:\ECE3849\Lab3\ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin\src
 #
 GEN_SRC_DIR ?= ../src
 
