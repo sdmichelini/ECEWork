@@ -210,8 +210,11 @@ void ADCISR(void) {
 	}
 //Buffer Index we are inserting into
 	int buffer_index = ADC_BUFFER_WRAP(g_iADCBufferIndex + 1);
-	//Read from ADC
-	g_pusADCBuffer[buffer_index] = ADC0_SSFIFO0_R;
+	while((ADC0_SSFSTAT0_R & ADC_SSFSTAT0_EMPTY) != ADC_SSFSTAT0_EMPTY){
+		g_pusADCBuffer[buffer_index] = ADC_SSFIFO0_R & ADC_SSFIFO0_DATA_M; //Read in while we have samples
+		buffer_index = ADC_BUFFER_WRAP(buffer_index++);
+	}
+	
 	g_iADCBufferIndex = buffer_index;
 }
 
@@ -232,9 +235,16 @@ void configureAdc(void) {
 	//"always trigger"
 	//Highest Priority
 	ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_ALWAYS, 0);
-	//Configure the Sequence Step
-	ADCSequenceStepConfigure(ADC0_BASE, 0, 0,
-			ADC_CTL_IE | ADC_CTL_END | ADC_CTL_CH0);
+	//Configure the Sequence Steps
+	//Interrupt on 4 and 8
+	ADCSequenceStepConfigure(ADC0_BASE, 0, 0, ADC_CTL_CH0);
+	ADCSequenceStepConfigure(ADC0_BASE, 0, 1, ADC_CTL_CH0);
+	ADCSequenceStepConfigure(ADC0_BASE, 0, 2, ADC_CTL_CH0);
+	ADCSequenceStepConfigure(ADC0_BASE, 0, 3, ADC_CTL_CH0 | ADC_CTL_IE);
+	ADCSequenceStepConfigure(ADC0_BASE, 0, 4, ADC_CTL_CH0);
+	ADCSequenceStepConfigure(ADC0_BASE, 0, 5, ADC_CTL_CH0);
+	ADCSequenceStepConfigure(ADC0_BASE, 0, 6, ADC_CTL_CH0);
+	ADCSequenceStepConfigure(ADC0_BASE, 0, 7, ADC_CTL_CH0 | ADC_CTL_IE | ADC_CTL_END);
 	//Enable ADC Interrupt from Sequence 0
 	ADCIntEnable(ADC0_BASE, 0);
 	//Enabled ADC interrupt from sequence 0
