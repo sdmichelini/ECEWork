@@ -93,7 +93,7 @@ void CaptureIsr(void){
 
 		//Catch the rool-over cases by anding w/ 0xffff
 		long diff = (curVal - lastVal)&0xffff;
-
+		AddDataSample(diff);
 		//diff is the period in clk ticks
 
 		//Now we need to find a way to average diff
