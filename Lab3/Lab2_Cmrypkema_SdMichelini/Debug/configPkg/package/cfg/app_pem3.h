@@ -49,6 +49,9 @@ extern const ti_sysbios_knl_Semaphore_Handle fftSem;
 #include <ti/sysbios/knl/Task.h>
 extern const ti_sysbios_knl_Task_Handle fTask;
 
+#include <ti/sysbios/family/arm/m3/Hwi.h>
+extern const ti_sysbios_family_arm_m3_Hwi_Handle ti_sysbios_family_arm_m3_Hwi1;
+
 extern int xdc_runtime_Startup__EXECFXN__C;
 
 extern int xdc_runtime_Startup__RESETFXN__C;

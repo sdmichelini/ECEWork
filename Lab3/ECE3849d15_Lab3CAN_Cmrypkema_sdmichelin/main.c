@@ -3,7 +3,7 @@
  */
 
 #include <xdc/std.h>
-
+#include <xdc/cfg/global.h>
 #include <xdc/runtime/Error.h>
 #include <xdc/runtime/System.h>
 
@@ -26,6 +26,7 @@
 #include "driverlib/gpio.h"
 #include "driverlib/timer.h"
 
+#include "utils/ustdlib.h"
 ///*
 // *  ======== taskFxn ========
 // */
@@ -54,32 +55,27 @@ void InitSamples();
 //Moving-Average Filter
 void AddDataSample(long sample);
 //Get's the average
-long GetAverageSamples();
+unsigned long GetAverageSamples();
 
 //Filter Variables
 int g_filterIndex;
 int g_size;
+volatile unsigned long g_sum;
 //Circular Buffer to Hold the Samples
 long g_samples[SAMPLE_SIZE];
+long g_samplesCollected;
 
 void periodicScan(UArg arg0);
 
 Void main()
 { 
-//    Task_Handle task;
-//    Error_Block eb;
-//
-//    System_printf("enter main()\n");
-//
-//    Error_init(&eb);
-//    task = Task_create(taskFxn, NULL, &eb);
-//    if (task == NULL) {
-//        System_printf("Task_create() failed!\n");
-//        BIOS_exit(0);
-//    }
+
 	InitSamples();
+	g_sum = 0;
+	g_samplesCollected = 0;
 	configureComparator();
 	configureTimerACapture();
+	NetworkInit();
     BIOS_start();     /* enable interrupts and start SYS/BIOS */
 }
 
@@ -96,6 +92,15 @@ void canTask(UArg a0, UArg a1){
 
 void periodicScan(UArg ar0){
 	Semaphore_post(averageSem);
+
+	long average = GetAverageSamples();
+
+	//average is period in clk cycles
+	float period = (float)average/250000000.0f;
+	float frequency = 1.0f/period;
+	unsigned long mHz = (unsigned long)(frequency * 1000.0f);
+
+	NetworkTx(mHz);
 }
 
 /*
@@ -114,7 +119,9 @@ void CaptureIsr(void){
 
 		//Catch the rool-over cases by anding w/ 0xffff
 		long diff = (curVal - lastVal)&0xffff;
-		AddDataSample(diff);
+		g_sum += diff;
+		g_samplesCollected++;
+//		AddDataSample(diff);
 		//diff is the period in clk ticks
 
 		//Now we need to find a way to average diff
@@ -151,16 +158,26 @@ void AddDataSample(long sample){
 /*
  * Get's the Average from the Samples Buffer
  */
-long GetAverageSamples(){
-	unsigned int i;
-	long sum = 0;
-	for(i = 0; i < g_size; i++){
-		sum+= g_samples[i];
-	}
-	if(g_size == 0){
+unsigned long GetAverageSamples(){
+//	unsigned int i;
+//	long sum = 0;
+//	for(i = 0; i < g_size; i++){
+//		sum+= g_samples[i];
+//	}
+//	if(g_size == 0){
+//		return 0;
+//	}else{
+//		return sum/g_size;
+//	}
+	if(g_samplesCollected == 0){
 		return 0;
 	}else{
-		return sum/g_size;
+		IntMasterDisable();
+		unsigned long temp = g_sum/g_samplesCollected;
+		g_sum = 0;
+		g_samplesCollected = 0;
+		IntMasterEnable();
+		return temp;
 	}
 }
 

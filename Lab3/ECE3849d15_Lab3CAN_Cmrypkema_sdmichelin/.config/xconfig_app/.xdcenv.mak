@@ -1,7 +1,7 @@
 #
 _XDCBUILDCOUNT = 0
 ifneq (,$(findstring path,$(_USEXDCENV_)))
-override XDCPATH = C:/ti/bios_6_35_01_29/packages;C:/ti/ccsv5/ccs_base;M:/ECE3849/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/.config
+override XDCPATH = C:/ti/bios_6_35_01_29/packages;C:/ti/ccsv5/ccs_base;M:/Git/ECEWork/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/.config
 override XDCROOT = C:/ti/xdctools_3_25_00_48
 override XDCBUILDCFG = ./config.bld
 endif
@@ -11,6 +11,6 @@ override XDCTARGETS =
 endif
 #
 ifeq (0,1)
-PKGPATH = C:/ti/bios_6_35_01_29/packages;C:/ti/ccsv5/ccs_base;M:/ECE3849/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/.config;C:/ti/xdctools_3_25_00_48/packages;..
+PKGPATH = C:/ti/bios_6_35_01_29/packages;C:/ti/ccsv5/ccs_base;M:/Git/ECEWork/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/.config;C:/ti/xdctools_3_25_00_48/packages;..
 HOSTOS = Windows
 endif

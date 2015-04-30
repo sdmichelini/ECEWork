@@ -200,6 +200,7 @@ main.obj: C:/ti/bios_6_35_01_29/packages/ti/sysbios/knl/Task.h
 main.obj: C:/ti/bios_6_35_01_29/packages/ti/sysbios/knl/Task.h
 main.obj: C:/ti/bios_6_35_01_29/packages/ti/sysbios/knl/Semaphore.h
 main.obj: C:/ti/bios_6_35_01_29/packages/ti/sysbios/knl/Task.h
+main.obj: C:/ti/bios_6_35_01_29/packages/ti/sysbios/family/arm/m3/Hwi.h
 main.obj: C:/ti/xdctools_3_25_00_48/packages/xdc/runtime/Error.h
 main.obj: C:/ti/xdctools_3_25_00_48/packages/xdc/runtime/System.h
 main.obj: C:/ti/xdctools_3_25_00_48/packages/xdc/runtime/Types.h
@@ -251,6 +252,7 @@ main.obj: C:/ti/ccsv5/tools/compiler/arm_5.0.4/include/math.h
 main.obj: C:/ti/ccsv5/tools/compiler/arm_5.0.4/include/string.h
 main.obj: ../_kiss_fft_guts.h
 main.obj: C:/ti/ccsv5/tools/compiler/arm_5.0.4/include/limits.h
+main.obj: ../network.h
 
 ../main.c: 
 C:/ti/xdctools_3_25_00_48/packages/xdc/std.h: 
@@ -452,6 +454,7 @@ C:/ti/bios_6_35_01_29/packages/ti/sysbios/knl/Task.h:
 C:/ti/bios_6_35_01_29/packages/ti/sysbios/knl/Task.h: 
 C:/ti/bios_6_35_01_29/packages/ti/sysbios/knl/Semaphore.h: 
 C:/ti/bios_6_35_01_29/packages/ti/sysbios/knl/Task.h: 
+C:/ti/bios_6_35_01_29/packages/ti/sysbios/family/arm/m3/Hwi.h: 
 C:/ti/xdctools_3_25_00_48/packages/xdc/runtime/Error.h: 
 C:/ti/xdctools_3_25_00_48/packages/xdc/runtime/System.h: 
 C:/ti/xdctools_3_25_00_48/packages/xdc/runtime/Types.h: 
@@ -503,3 +506,4 @@ C:/ti/ccsv5/tools/compiler/arm_5.0.4/include/math.h:
 C:/ti/ccsv5/tools/compiler/arm_5.0.4/include/string.h: 
 ../_kiss_fft_guts.h: 
 C:/ti/ccsv5/tools/compiler/arm_5.0.4/include/limits.h: 
+../network.h: 

@@ -11,7 +11,7 @@ var makeAssembly = false;
 var Executable = xdc.module('xdc.bld.Executable');
 
 var exeOpts = new Executable.Attrs({
-        cfgScript: 'M:/ECE3849/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/app.cfg',
+        cfgScript: 'M:/Git/ECEWork/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/app.cfg',
         profile: 'release',
         cfgHome: 'configPkg',
 });
@@ -41,7 +41,7 @@ else {
 
 var thisObj = {
     cfg:        '../app.cfg',
-    outputPath: 'M:/ECE3849/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/Debug/configPkg',
+    outputPath: 'M:/Git/ECEWork/Lab3/ECE3849d15_Lab3CAN_Cmrypkema_sdmichelin/Debug/configPkg',
     exeName:    'app' + suffix,
     exeIntName: 'app' + suffix.replace('.', '_'),
     targ:       targ,

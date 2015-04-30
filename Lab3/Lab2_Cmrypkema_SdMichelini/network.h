@@ -8,6 +8,8 @@
 #ifndef NETWORK_H_
 #define NETWORK_H_
 
+//volatile unsigned long g_frequency2;
+
 #define CAN_BIT_RATE 1000000 // [bps] CAN bit rate, 1 Mbps max
 
 #define MSG_ID_RX 2 // message IDs 11-bit or 29-bit
@@ -17,6 +19,8 @@
 #define MSG_NUM_TX 2 // these can be constant on both communicating boards
 
 // CAN interrupt service routine - must be registered with the interrupt controller/dispatcher
+extern unsigned long g_frequency2;
+
 void CAN_ISR(void);
 
 // initialize CAN

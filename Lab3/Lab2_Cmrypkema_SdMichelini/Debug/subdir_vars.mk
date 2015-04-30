@@ -14,14 +14,18 @@ C_SRCS += \
 ../frame_graphics.c \
 ../kiss_fft.c \
 ../main.c \
-C:/StellarisWare/boards/ek-lm3s8962/drivers/rit128x96x4.c 
+../network.c \
+C:/StellarisWare/boards/ek-lm3s8962/drivers/rit128x96x4.c \
+C:/StellarisWare/utils/ustdlib.c 
 
 OBJS += \
 ./buttons.obj \
 ./frame_graphics.obj \
 ./kiss_fft.obj \
 ./main.obj \
-./rit128x96x4.obj 
+./network.obj \
+./rit128x96x4.obj \
+./ustdlib.obj 
 
 GEN_SRCS += \
 ./configPkg/compiler.opt \
@@ -32,7 +36,9 @@ C_DEPS += \
 ./frame_graphics.pp \
 ./kiss_fft.pp \
 ./main.pp \
-./rit128x96x4.pp 
+./network.pp \
+./rit128x96x4.pp \
+./ustdlib.pp 
 
 GEN_MISC_DIRS += \
 ./configPkg/ 
@@ -55,14 +61,18 @@ C_DEPS__QUOTED += \
 "frame_graphics.pp" \
 "kiss_fft.pp" \
 "main.pp" \
-"rit128x96x4.pp" 
+"network.pp" \
+"rit128x96x4.pp" \
+"ustdlib.pp" 
 
 OBJS__QUOTED += \
 "buttons.obj" \
 "frame_graphics.obj" \
 "kiss_fft.obj" \
 "main.obj" \
-"rit128x96x4.obj" 
+"network.obj" \
+"rit128x96x4.obj" \
+"ustdlib.obj" 
 
 GEN_OPTS__FLAG += \
 --cmd_file="./configPkg/compiler.opt" 
@@ -75,6 +85,8 @@ C_SRCS__QUOTED += \
 "../frame_graphics.c" \
 "../kiss_fft.c" \
 "../main.c" \
-"C:/StellarisWare/boards/ek-lm3s8962/drivers/rit128x96x4.c" 
+"../network.c" \
+"C:/StellarisWare/boards/ek-lm3s8962/drivers/rit128x96x4.c" \
+"C:/StellarisWare/utils/ustdlib.c" 
 
 

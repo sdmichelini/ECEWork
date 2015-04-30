@@ -31,5 +31,15 @@
 			<type>1</type>
 			<location>C:/StellarisWare/boards/ek-lm3s8962/drivers/rit128x96x4.c</location>
 		</link>
+		<link>
+			<name>ustdlib.c</name>
+			<type>1</type>
+			<location>C:/StellarisWare/utils/ustdlib.c</location>
+		</link>
+		<link>
+			<name>ustdlib.h</name>
+			<type>1</type>
+			<location>C:/StellarisWare/utils/ustdlib.h</location>
+		</link>
 	</linkedResources>
 </projectDescription>

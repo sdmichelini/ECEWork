@@ -98,6 +98,9 @@ float g_spectrumBuffer[FRAME_SIZE_X];
 #define GRID_BRIGHTNESS 0x5
 #define TEXT_BRIGHTNESS 0xf
 
+
+
+
 //Trigger State
 //What type of trigger it is
 typedef enum {
@@ -186,7 +189,7 @@ unsigned long g_ulSystemClock;
 Void main() {
 
 	Error_Block eb;
-
+	g_frequency2 = 0;
 //	Normal State to Begin With
 	g_waveState = kNormal;
 	unsigned int i;
@@ -619,6 +622,7 @@ void displayTask(UArg arg0, UArg arg1){
 				DrawLine(i,y1,i+1,y2,0xf);
 			}
 		}
+		drawFrequency(g_frequency2);
 		//Push the Drawing Buffer
 		RIT128x96x4ImageDraw(g_pucFrame, 0, 0, FRAME_SIZE_X, FRAME_SIZE_Y);
 		//Semaphore_post(localBufSem);

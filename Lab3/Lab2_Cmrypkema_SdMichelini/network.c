@@ -19,13 +19,17 @@
 static tCANMsgObject g_MsgRx;
 static unsigned long g_ulRxData;
 
+unsigned long g_frequency2;
+
+
+
 static tCANMsgObject g_MsgTx;
 
 void NetworkMsgInit(void);
 
 void CAN_ISR(void)
 {
-    unsigned long ulStatus;
+    unsigned long ulStatus = 0;
 
     ulStatus = CANIntStatus(CAN0_BASE, CAN_INT_STS_CAUSE);
     switch(ulStatus)
@@ -53,6 +57,8 @@ void NetworkInit(void)
     CANEnable(CAN0_BASE);
     CANIntEnable(CAN0_BASE, CAN_INT_MASTER | CAN_INT_ERROR | CAN_INT_STATUS);
     NetworkMsgInit();
+
+//    g_frequency2 = 0;
 
 	// loopback mode
 //    volatile int i;
@@ -90,7 +96,10 @@ void NetworkTx(unsigned long ulData)
 	CANMessageSet(CAN0_BASE, MSG_NUM_TX, &g_MsgTx, MSG_OBJ_TYPE_TX);
 }
 
+
 void NetworkRxCallback(unsigned long ulData)
 {
-
+	g_frequency2 = *(unsigned long*)g_MsgRx.pucMsgData;
 }
+
+
