@@ -44,6 +44,7 @@
 void configureComparator(void);
 void configureTimerACapture(void);
 void CaptureIsr(void);
+void canTask(UArg a0, UArg a1);
 
 #define SAMPLE_SIZE 10
 
@@ -82,9 +83,19 @@ Void main()
     BIOS_start();     /* enable interrupts and start SYS/BIOS */
 }
 
-void periodicScan(UArg ar0){
-	long average = GetAverageSamples();
+void canTask(UArg a0, UArg a1){
+	while(1){
+		//Pend on a semaphore
+		Semaphore_pend(averageSem, BIOS_WAIT_FOREVER);
+		
+		//Get the average period
+		//Convert to mHz in form of unsigned long(Create a function to do this)
+		//Send over CAN
+	}
+}
 
+void periodicScan(UArg ar0){
+	Semaphore_post(averageSem);
 }
 
 /*
