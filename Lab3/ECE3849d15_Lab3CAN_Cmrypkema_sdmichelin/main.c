@@ -27,17 +27,7 @@
 #include "driverlib/timer.h"
 
 #include "utils/ustdlib.h"
-///*
-// *  ======== taskFxn ========
-// */
-//Void taskFxn(UArg a0, UArg a1)
-//{
-//    System_printf("enter taskFxn()\n");
-//
-//    Task_sleep(10);
-//
-//    System_printf("exit taskFxn()\n");
-//}
+
 
 /*
  *  ======== main ========
@@ -76,58 +66,49 @@ Void main()
 	configureComparator();
 	configureTimerACapture();
 	NetworkInit();
-    BIOS_start();     /* enable interrupts and start SYS/BIOS */
+	BIOS_start();     /* enable interrupts and start SYS/BIOS */
 }
 
 void canTask(UArg a0, UArg a1){
 	while(1){
 		//Pend on a semaphore
 		Semaphore_pend(averageSem, BIOS_WAIT_FOREVER);
-		
+
 		//Get the average period
 		//Convert to mHz in form of unsigned long(Create a function to do this)
 		//Send over CAN
+
+		long average = GetAverageSamples();
+
+		//average is period in clk cycles
+		float period = (float)average/250000000.0f;
+		float frequency = 1.0f/period;
+		unsigned long mHz = (unsigned long)(frequency * 1000.0f);
+
+		NetworkTx(mHz);
 	}
 }
 
 void periodicScan(UArg ar0){
 	Semaphore_post(averageSem);
-
-	long average = GetAverageSamples();
-
-	//average is period in clk cycles
-	float period = (float)average/250000000.0f;
-	float frequency = 1.0f/period;
-	unsigned long mHz = (unsigned long)(frequency * 1000.0f);
-
-	NetworkTx(mHz);
 }
 
 /*
 HWI for capturing period
-*/
+ */
 void CaptureIsr(void){
 	//Clear Interrupt Flag
 	TIMER0_ICR_R = TIMER_ICR_CAECINT;
-
 	static long lastVal = 0;
-
 	if(lastVal == 0){
 		lastVal = TIMER0_TAR_R;//Grab the time if we don't have one
 	}else{
 		long curVal = TIMER0_TAR_R;
-
 		//Catch the rool-over cases by anding w/ 0xffff
 		long diff = (curVal - lastVal)&0xffff;
+		lastVal = curVal;
 		g_sum += diff;
 		g_samplesCollected++;
-//		AddDataSample(diff);
-		//diff is the period in clk ticks
-
-		//Now we need to find a way to average diff
-		//Circular Buffer and adding diff/sizeof(buf) each time???
-		//Is it shared-data safe
-		//Do we care if samples in array get modified
 	}
 }
 
@@ -159,24 +140,15 @@ void AddDataSample(long sample){
  * Get's the Average from the Samples Buffer
  */
 unsigned long GetAverageSamples(){
-//	unsigned int i;
-//	long sum = 0;
-//	for(i = 0; i < g_size; i++){
-//		sum+= g_samples[i];
-//	}
-//	if(g_size == 0){
-//		return 0;
-//	}else{
-//		return sum/g_size;
-//	}
-	if(g_samplesCollected == 0){
+	if(g_samplesCollected == 0){//Don't divide by zero
 		return 0;
-	}else{
-		IntMasterDisable();
+	}else{//Average = Sum/Collected
+		IArg key;
+		key = GateHwi_enter(gateHwi0);
 		unsigned long temp = g_sum/g_samplesCollected;
 		g_sum = 0;
 		g_samplesCollected = 0;
-		IntMasterEnable();
+		GateHwi_leave(gateHwi0, key);
 		return temp;
 	}
 }
